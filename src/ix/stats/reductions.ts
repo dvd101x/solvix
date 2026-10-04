@@ -113,6 +113,28 @@ export function sum(arr: NDArray, opts: ReductionOptions = {}): NDArray | number
   });
 }
 
+export function sumProduct(...arrays: NDArray[]): number {
+  if (arrays.length === 0) {
+    throw new RangeError('sumProduct requires at least one NDArray');
+  }
+
+  const first = arrays[0];
+  for (const arr of arrays.slice(1)) {
+    if (arr.ndim !== first.ndim || arr.shape.some((size, axis) => size !== first.shape[axis])) {
+      throw new Error('sumProduct requires arrays with identical shapes');
+    }
+  }
+
+  const iterators = arrays.map((arr) => arr[Symbol.iterator]());
+  let result = 0;
+  for (let i = 0; i < first.size; i++) {
+    let product = 1;
+    for (const iterator of iterators) product *= iterator.next().value!;
+    result += product;
+  }
+  return result;
+}
+
 export function prod(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
     let p = 1;

@@ -73,7 +73,7 @@ export function nelderMead(
   x0: NDArray | number[],
   opts: { tol?: number; maxIter?: number } = {}
 ): MinMultivarResult {
-  const tol = opts.tol ?? 1e-6;
+  const tol = opts.tol ?? 1e-8;
   const maxIter = opts.maxIter ?? 500;
 
   const startVec = x0 instanceof NDArray ? Array.from(x0.data) : [...x0];

@@ -1,66 +1,66 @@
 /**
  * @file helpers.ts
- * Utilidades AI-Ready y ayudas interactivas para personas y agentes LLM:
- * - help(fn): Documentación y firmas de funciones con ejemplos ejecutables
- * - summary(tensor): Vista resumida compacta para no saturar contextos de LLM
- * - fromCSV: Parser de tablas y strings CSV directo a DataFrame o NDArray
- * - fromMatrixString: Parser de notación estilo MATLAB "1 2; 3 4"
- * - unitsHelp: Catálogo de unidades y guía interactiva de magnitudes
+ * AI-ready utilities and interactive help for users and LLM agents:
+ * - help(fn): Function documentation and signatures with executable examples
+ * - summary(tensor): Compact tensor summary for LLM contexts
+ * - fromCSV: Parse CSV tables directly into a DataFrame or NDArray
+ * - fromMatrixString: Parse MATLAB-style notation such as "1 2; 3 4"
+ * - unitsHelp: Unit catalog and interactive quantity guide
  */
 import { NDArray } from '../core/ndarray.js';
 import { DataFrame } from '../dataframe/dataframe.js';
 import { units } from '../units/units.js';
 
 /**
- * Catálogo interactivo de documentación para humanos y agentes
+ * Interactive documentation catalog for users and agents
  */
 const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: string }> = {
   linspace: {
-    desc: 'Genera un vector 1D con N valores linealmente espaciados entre start y stop.',
+    desc: 'Generates a 1D vector with N values linearly spaced between start and stop.',
     signature: 'linspace(start: number, stop: number, num?: number): NDArray',
-    example: 'const x = ix.linspace(0, 10, 5); // [0, 2.5, 5, 7.5, 10]',
+    example: 'const x = solvix.linspace(0, 10, 5); // [0, 2.5, 5, 7.5, 10]',
   },
   fft: {
-    desc: 'Calcula la Transformada Rápida de Fourier (FFT) 1D mediante Cooley-Tukey.',
+    desc: 'Computes the one-dimensional Cooley-Tukey Fast Fourier Transform (FFT).',
     signature: 'fft(signal: NDArray | number[], sampleRate?: number): FFTResult',
-    example: 'const { frequencies, magnitude } = ix.fft(signal, 1000);',
+    example: 'const { frequencies, magnitude } = solvix.fft(signal, 1000);',
   },
   ode45: {
-    desc: 'Solucionador de ecuaciones diferenciales ordinarias adaptativo Runge-Kutta Dormand-Prince.',
+    desc: 'Adaptive Dormand-Prince Runge-Kutta solver for ordinary differential equations.',
     signature: 'ode45(f: (t, y) => NDArray, tSpan: [t0, tf], y0: NDArray, opts?): ODESolution',
-    example: 'const sol = ix.ode45((t, y) => ix.mul(y, -1), [0, 5], ix.NDArray.ones([1]));',
+    example: 'const sol = solvix.ode45((t, y) => solvix.mul(y, -1), [0, 5], solvix.NDArray.ones([1]));',
   },
   fsolve: {
-    desc: 'Resuelve sistemas de ecuaciones no lineales F(x) = 0 usando Newton-Raphson.',
+    desc: 'Solves nonlinear systems F(x) = 0 using Newton-Raphson.',
     signature: 'fsolve(F: (x: NDArray) => NDArray, x0: NDArray | number[], opts?): FsolveResult',
-    example: 'const { x } = ix.fsolve((v) => ix.sub(ix.pow(v, 2), 2), [1.0]);',
+    example: 'const { x } = solvix.fsolve((v) => solvix.sub(solvix.pow(v, 2), 2), [1.0]);',
   },
   nelderMead: {
-    desc: 'Minimización multivariable sin derivadas (Simplex) para encontrar mínimos locales.',
+    desc: 'Derivative-free multivariable minimization (simplex) for finding local minima.',
     signature: 'nelderMead(f: (x: NDArray) => number, x0: NDArray | number[], opts?): MinMultivarResult',
-    example: 'const res = ix.nelderMead((v) => v.get(0)**2 + v.get(1)**2, [2, 3]);',
+    example: 'const res = solvix.nelderMead((v) => v.get(0)**2 + v.get(1)**2, [2, 3]);',
   },
   quad: {
-    desc: 'Integración numérica adaptativa de Simpson para funciones continuas en [a, b].',
+    desc: 'Adaptive Simpson quadrature for continuous functions on [a, b].',
     signature: 'quad(f: (x: number) => number, a: number, b: number, tol?): number',
-    example: 'const area = ix.quad((x) => Math.sin(x), 0, Math.PI); // ≈ 2.0',
+    example: 'const area = solvix.quad((x) => Math.sin(x), 0, Math.PI); // ≈ 2.0',
   },
 };
 
 /**
- * Consulta la ayuda y firma de una función en texto estructurado
+ * Return structured help and a function signature as text
  */
 export function help(nameOrFn: string | Function): string {
   const name = typeof nameOrFn === 'function' ? nameOrFn.name : nameOrFn;
   const doc = DOCS_REGISTRY[name];
   if (!doc) {
-    return `[ix.help] No documentation found for "${name}". Available topics: ${Object.keys(DOCS_REGISTRY).join(', ')}`;
+    return `[solvix.help] No documentation found for "${name}". Available topics: ${Object.keys(DOCS_REGISTRY).join(', ')}`;
   }
-  return `=== ${name} ===\n${doc.desc}\n\nFirma: ${doc.signature}\nEjemplo:\n  ${doc.example}`;
+  return `=== ${name} ===\n${doc.desc}\n\nSignature: ${doc.signature}\nExample:\n  ${doc.example}`;
 }
 
 /**
- * Genera un resumen compacto en Markdown de un tensor para no desbordar ventanas de contexto de LLMs
+ * Generate a compact Markdown summary of a tensor for LLM context windows
  */
 export function summary(arr: NDArray): string {
   const shapeStr = `[${Array.from(arr.shape).join(' x ')}]`;
@@ -85,7 +85,7 @@ export function summary(arr: NDArray): string {
 }
 
 /**
- * Parsea una cadena de texto en formato CSV a un DataFrame
+ * Parse a CSV string into a DataFrame
  */
 export function fromCSV(csvString: string, opts: { hasHeader?: boolean; delimiter?: string } = {}): DataFrame {
   const delimiter = opts.delimiter ?? ',';
@@ -125,7 +125,7 @@ export function fromCSV(csvString: string, opts: { hasHeader?: boolean; delimite
 }
 
 /**
- * Parsea notación matricial compacta estilo MATLAB/Octave: "1 2 3; 4 5 6"
+ * Parse compact MATLAB/Octave-style matrix notation, such as "1 2 3; 4 5 6"
  */
 export function fromMatrixString(matStr: string): NDArray {
   const rowStrings = matStr.trim().replace(/^\[|\]$/g, '').split(';');
@@ -149,12 +149,12 @@ export function fromMatrixString(matStr: string): NDArray {
 }
 
 /**
- * Catálogo e introspección de unidades para personas y agentes
+ * Unit catalog and introspection for users and agents
  */
 export function unitsHelp(): string {
   const list = units.listUnits();
-  let out = '=== Catálogo de Unidades Físicas (ix.units) ===\n';
-  out += 'Nombre'.padEnd(16) + 'Símbolo'.padEnd(10) + 'Descripción\n';
+  let out = '=== Physical Unit Catalog (solvix.units) ===\n';
+  out += 'Name'.padEnd(16) + 'Symbol'.padEnd(10) + 'Description\n';
   out += '-'.repeat(55) + '\n';
   for (const u of list) {
     out += `${u.name.padEnd(16)}${u.symbol.padEnd(10)}${u.description || ''}\n`;

@@ -19,6 +19,8 @@ export type TypedArray =
   | Uint8Array
   | Uint8ClampedArray;
 
+export type NestedNumberArray = number | NestedNumberArray[];
+
 export interface NDArrayOptions {
   shape?: number[] | Int32Array;
   strides?: number[] | Int32Array;
@@ -207,6 +209,20 @@ export class NDArray {
         coords[d] = 0;
       }
     }
+  }
+
+  public toNestedArray(): NestedNumberArray {
+    const build = (dimension: number, offset: number): NestedNumberArray => {
+      if (dimension === this.ndim) return this.data[offset];
+
+      const values: NestedNumberArray[] = new Array(this.shape[dimension]);
+      for (let i = 0; i < values.length; i++) {
+        values[i] = build(dimension + 1, offset + i * this.strides[dimension]);
+      }
+      return values;
+    };
+
+    return build(0, this.offset);
   }
 
   // --- Métodos de Fábrica (NumPy/Julia style) ---

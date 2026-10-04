@@ -30,6 +30,16 @@ describe('ix / types / complex', () => {
     expect(z.conj().im).toBe(-4);
   });
 
+  it('handles zero roots, polar construction, and division by zero', () => {
+    expect(complex(0, 0).sqrt()).toEqual(complex(0, 0));
+    expect(Complex.fromPolar(2, Math.PI / 2).re).toBeCloseTo(0, 12);
+    expect(Complex.fromPolar(2, Math.PI / 2).im).toBeCloseTo(2, 12);
+
+    const quotient = complex(1, 2).div(complex(0, 0));
+    expect(quotient.re).toBe(Infinity);
+    expect(quotient.im).toBe(Infinity);
+  });
+
   it('computes complex square roots including negative reals: sqrt(-4) = 2i', () => {
     const negReal = complex(-4, 0);
     const root = negReal.sqrt();
@@ -52,6 +62,18 @@ describe('ix / types / fraction', () => {
     expect(f.n).toBe(1n);
     expect(f.d).toBe(2n);
     expect(f.toString()).toBe('1/2');
+  });
+
+  it('normalizes negative denominators and supports negative integer powers', () => {
+    expect(frac(2, -4).toString()).toBe('-1/2');
+    expect(frac(2, 3).pow(-2).toString()).toBe('9/4');
+    expect(frac(-3, 4).pow(0).toString()).toBe('1');
+  });
+
+  it('rejects zero denominators and division by zero', () => {
+    expect(() => frac(1, 0)).toThrow(RangeError);
+    expect(() => frac(1, 2).div(0)).toThrowError(/Division by zero/);
+    expect(() => frac(0).inv()).toThrowError(/Division by zero/);
   });
 
   it('performs exact rational arithmetic with zero IEEE-754 floating point errors', () => {

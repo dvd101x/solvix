@@ -47,6 +47,14 @@ describe('ix / linalg / factorizations & linear systems', () => {
     expect(invA.get(1, 1)).toBeCloseTo(0.4, 5);
   });
 
+  it('rejects singular matrices and right-hand sides with the wrong dimension', () => {
+    const singular = new NDArray(new Float64Array([1, 2, 2, 4]), { shape: [2, 2] });
+    const identity = new NDArray(new Float64Array([1, 0, 0, 1]), { shape: [2, 2] });
+
+    expect(() => lu(singular)).toThrowError(/singular or near-singular/);
+    expect(() => solve(identity, [1])).toThrowError(/Dimension mismatch/);
+  });
+
   it('computes QR decomposition (A = QR)', () => {
     // Matriz 3x2
     const A = new NDArray(new Float64Array([12, -51, 6, 167, -4, 24]), { shape: [3, 2] });
@@ -57,6 +65,11 @@ describe('ix / linalg / factorizations & linear systems', () => {
 
     // R es triangular superior: R[1, 0] = 0
     expect(R.get(1, 0)).toBeCloseTo(0, 5);
+  });
+
+  it('rejects wide matrices for QR decomposition', () => {
+    const wide = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
+    expect(() => qr(wide)).toThrowError(/rows >= cols/);
   });
 
   it('computes SVD decomposition (U, S, V)', () => {
@@ -104,5 +117,21 @@ describe('ix / parser / mathematical expression parser & AST', () => {
     };
     const res = evaluate('double(5) + det(A)', customScope);
     expect(res).toBe(11); // 10 + 1
+  });
+
+  it('reports incomplete expressions and unknown function names', () => {
+    expect(() => evaluate('2 +')).toThrow(SyntaxError);
+    expect(() => evaluate('unknownFunction(2)')).toThrowError(/Unknown function/);
+  });
+
+  it('supports common Math built-ins in evaluated and compiled expressions', () => {
+    expect(evaluate('log10(100) + log2(8)')).toBe(5);
+    expect(evaluate('sign(-4) + trunc(2.9)')).toBe(1);
+    expect(evaluate('atan2(1, 0)')).toBeCloseTo(Math.PI / 2, 12);
+    expect(evaluate('hypot(3, 4)')).toBe(5);
+    expect(evaluate('min(3, 1, 2) + max(3, 1, 2)')).toBe(4);
+    expect(evaluate('pow(2, 3)')).toBe(8);
+    expect(evaluate('clamp(5, 0, 3)')).toBe(3);
+    expect(compile('sinh(x) + cosh(x)')({ x: 0 })).toBe(1);
   });
 });

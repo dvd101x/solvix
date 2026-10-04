@@ -22,6 +22,7 @@ import {
   variance,
   median,
   quantile,
+  sumProduct,
   skew,
   kurtosis,
   describe as statsDescribe,
@@ -31,6 +32,13 @@ describe('ix / generators / ranges', () => {
   it('generates linspace correctly', () => {
     const arr = linspace(0, 10, 5);
     expect(Array.from(arr.data)).toEqual([0, 2.5, 5, 7.5, 10]);
+  });
+
+  it('handles singleton linspace and descending or empty ranges', () => {
+    expect(Array.from(linspace(3, 9, 1).data)).toEqual([3]);
+    expect(() => linspace(3, 9, 0)).toThrow(RangeError);
+    expect(Array.from(arange(5, 0, -2).data)).toEqual([5, 3, 1]);
+    expect(Array.from(arange(5, 5).data)).toEqual([]);
   });
 
   it('generates arange correctly', () => {
@@ -47,6 +55,12 @@ describe('ix / generators / ranges', () => {
 
     const identity = eye(2);
     expect(Array.from(identity.data)).toEqual([1, 0, 0, 1]);
+  });
+
+  it('creates rectangular identity matrices', () => {
+    const identity = eye(2, 3);
+    expect(Array.from(identity.shape)).toEqual([2, 3]);
+    expect(Array.from(identity.data)).toEqual([1, 0, 0, 0, 1, 0]);
   });
 
   it('creates 2D meshgrid', () => {
@@ -124,12 +138,33 @@ describe('ix / stats / reductions with axis and pandas statistics', () => {
     expect(Array.from(m0.data)).toEqual([2.5, 3.5, 4.5]);
   });
 
+  it('computes sum-products over strided arrays and validates their shapes', () => {
+    const source = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
+    const strided = source.slice([0, 2], [0, 3, 2]);
+    const weights = new NDArray(new Float64Array([1, 2, 3, 4]), { shape: [2, 2] });
+
+    expect(sumProduct(strided, weights)).toBe(43);
+    expect(sumProduct(strided, weights, NDArray.ones([2, 2]))).toBe(43);
+    expect(sumProduct(NDArray.zeros([0]))).toBe(0);
+    expect(() => sumProduct()).toThrow(RangeError);
+    expect(() => sumProduct(strided, NDArray.zeros([4]))).toThrowError(/identical shapes/);
+  });
+
   it('computes median and quantiles', () => {
     const data = new NDArray(new Float64Array([10, 20, 30, 40, 50]), { shape: [5] });
     expect(median(data)).toBe(30);
     expect(quantile(data, 0.5)).toBe(30);
     expect(quantile(data, 0.25)).toBe(20);
     expect(quantile(data, 0.75)).toBe(40);
+    expect(quantile(data, 0)).toBe(10);
+    expect(quantile(data, 1)).toBe(50);
+  });
+
+  it('distinguishes population and sample variance', () => {
+    const data = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
+    expect(variance(data)).toBeCloseTo(2 / 3, 12);
+    expect(variance(data, { ddof: 1 })).toBe(1);
+    expect(std(data, { ddof: 1 })).toBe(1);
   });
 
   it('computes descriptive statistics summary (pandas describe)', () => {

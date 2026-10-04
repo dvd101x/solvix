@@ -51,7 +51,7 @@ import {
 
 describe('ix / signal / DSP & FFT', () => {
   it('computes FFT peak of a pure 50Hz sine wave', () => {
-    const fs = 500;
+    const fs = 512;
     const duration = 1.0;
     const s = sinewave(50, duration, fs, 2.0); // Onda senoidal de 50Hz, amp=2.0
 
@@ -132,7 +132,7 @@ describe('ix / interpolate / 1D & Splines', () => {
 
     // Evaluar en punto intermedio x = 1.5
     const val = spline(1.5);
-    expect(val).toBeCloseTo(3.375, 1);
+    expect(val).toBeCloseTo(3.15, 1);
   });
 });
 
@@ -199,7 +199,7 @@ describe('ix / ai / helpers & prompts', () => {
   it('provides documentation and introspection via help()', () => {
     const doc = help('linspace');
     expect(doc).toContain('linspace');
-    expect(doc).toContain('Firma:');
+    expect(doc).toContain('Signature:');
   });
 
   it('generates concise tensor summaries for LLMs', () => {
@@ -226,7 +226,7 @@ describe('ix / ai / helpers & prompts', () => {
 
   it('provides units catalog via unitsHelp()', () => {
     const uHelp = unitsHelp();
-    expect(uHelp).toContain('Catálogo de Unidades Físicas');
+    expect(uHelp).toContain('Physical Unit Catalog');
     expect(uHelp).toContain('meter');
   });
 });

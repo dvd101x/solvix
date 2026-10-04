@@ -90,12 +90,12 @@ export function createMathSupersetEnvironment() {
 
   defmethod(matmulMulti, ['NdArray', 'NdArray'], (a: NdArray, b: NdArray) => {
     // Delegate to tfjs for hardware-accelerated / optimized matmul
-    return TfjsAdapter.tidy(() => {
+    const result = TfjsAdapter.tidy(() => {
       const tA = TfjsAdapter.toTensor(a);
       const tB = TfjsAdapter.toTensor(b);
-      const res = tA.matMul(tB);
-      return TfjsAdapter.fromTensor(res);
+      return tA.matMul(tB);
     });
+    return TfjsAdapter.fromTensor(result, true);
   });
 
   // Register multi-dispatch functions into mathjs scope
@@ -105,11 +105,13 @@ export function createMathSupersetEnvironment() {
     det: detMulti,
     besselj: besseljMulti,
     matmul: matmulMulti,
-    ndarray: (data: any[], shape?: number[]) => {
-      if (shape) {
-        return new NdArray(data, shape);
+    ndarray: (data: any, shape?: any) => {
+      const values = typeof data?.toArray === 'function' ? data.toArray() : data;
+      const dimensions = typeof shape?.toArray === 'function' ? shape.toArray() : shape;
+      if (dimensions) {
+        return new NdArray(values.flat(Infinity), dimensions);
       }
-      return NdArray.fromArray(data);
+      return NdArray.fromArray(values);
     },
   }, { override: true });
 

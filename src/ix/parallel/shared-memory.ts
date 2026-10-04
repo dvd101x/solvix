@@ -25,7 +25,7 @@ export function createSharedNDArray(
 
   const bytesPerElement = type.BYTES_PER_ELEMENT;
   const sab = new SharedArrayBuffer(size * bytesPerElement);
-  const data = new type(sab);
+  const data = new type(sab as unknown as ArrayBuffer);
 
   return new NDArray(data, { shape });
 }

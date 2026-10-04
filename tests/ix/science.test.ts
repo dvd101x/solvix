@@ -47,6 +47,19 @@ describe('ix / ode / solvers (rk4 & ode45)', () => {
     expect(finalY.data[0]).toBeCloseTo(1.0, 3); // sin(pi/2)
     expect(finalY.data[1]).toBeCloseTo(0.0, 3); // cos(pi/2)
   });
+
+  it('returns the initial state without evaluating a zero-length interval', () => {
+    const y0 = new NDArray(new Float64Array([2, -1]), { shape: [2] });
+    let evaluations = 0;
+    const sol = ode45((t, y) => {
+      evaluations++;
+      return y;
+    }, [4, 4], y0);
+
+    expect(sol.t).toEqual([4]);
+    expect(sol.y).toEqual([y0]);
+    expect(evaluations).toBe(0);
+  });
 });
 
 describe('ix / optimize / root finding (fzero & fsolve)', () => {
@@ -55,6 +68,11 @@ describe('ix / optimize / root finding (fzero & fsolve)', () => {
     const res = fzero((x) => x * x - 2, [1, 2]);
     expect(res.converged).toBe(true);
     expect(res.root).toBeCloseTo(Math.SQRT2, 8);
+  });
+
+  it('accepts a root at a bracket endpoint and rejects intervals without a sign change', () => {
+    expect(fzero((x) => x, [0, 5]).root).toBe(0);
+    expect(() => fzero((x) => x * x + 1, [-1, 1])).toThrowError(/does not bracket a root/);
   });
 
   it('solves non-linear systems F(x) = 0 with fsolve (Newton-Raphson)', () => {
@@ -75,6 +93,18 @@ describe('ix / optimize / root finding (fzero & fsolve)', () => {
     expect(res.converged).toBe(true);
     expect(res.x.data[0]).toBeCloseTo(Math.SQRT1_2, 5);
     expect(res.x.data[1]).toBeCloseTo(Math.SQRT1_2, 5);
+  });
+
+  it('returns immediately when the initial guess is already a root', () => {
+    const res = fsolve(
+      (x) => new NDArray(new Float64Array([x.data[0] - 3]), { shape: [1] }),
+      [3]
+    );
+
+    expect(res.converged).toBe(true);
+    expect(res.iterations).toBe(1);
+    expect(res.x.get(0)).toBe(3);
+    expect(res.fval.get(0)).toBe(0);
   });
 });
 

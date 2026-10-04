@@ -51,7 +51,7 @@ export class TfjsAdapter {
   /**
    * Scoped execution helper for TensorFlow operations to avoid GPU memory leaks
    */
-  public static tidy<T>(fn: () => T): T {
-    return tf.tidy(fn);
+  public static tidy<T extends tf.TensorContainer>(fn: () => T): T {
+    return tf.tidy(fn) as T;
   }
 }

@@ -81,7 +81,7 @@ describe('ix / agent / AI tool calling, auto-repair & quickCalc', () => {
     // 2. Variable no declarada
     const diagVar = tryEval(() => evaluate('2 * foo'));
     expect(diagVar.success).toBe(false);
-    expect(diagVar.agentHint).toContain('Una variable no fue declarada');
+    expect(diagVar.agentHint).toContain('A variable was not declared');
   });
 
   it('provides quickCalc for instant calculation of text or LaTeX', () => {

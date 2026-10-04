@@ -1,9 +1,9 @@
 /**
  * @file agent-tools.ts
- * Utilidades de alta eficacia para Agentes LLM y Model Context Protocol (MCP):
- * - getToolDefinitions(): Genera esquemas JSON Schema compatibles con OpenAI/Anthropic/MCP
- * - tryEval(codeFn): Sandbox de ejecución con diagnóstico semántico enriquecido y sugerencias de corrección
- * - quickCalc(formula, inputs): Calculador instantáneo para agentes y usuarios a partir de descripciones
+ * Utilities for LLM agents and the Model Context Protocol (MCP):
+ * - getToolDefinitions(): Generate JSON Schema definitions compatible with OpenAI, Anthropic, and MCP
+ * - tryEval(codeFn): Execute code in a sandbox and return diagnostics with repair suggestions
+ * - quickCalc(formula, inputs): Evaluate an expression from a formula string
  */
 import { evaluate } from '../parser/parser.js';
 import { fromLaTeX } from '../latex/latex.js';
@@ -27,54 +27,54 @@ export interface ToolDefinition {
 }
 
 /**
- * Esquemas estándar JSON Schema para Function Calling de LLMs y servidores MCP
+ * Standard JSON Schema definitions for LLM function calling and MCP servers
  */
 export function getToolDefinitions(): ToolDefinition[] {
   return [
     {
       name: 'evaluateExpression',
-      description: 'Evalúa una expresión matemática en texto o LaTeX (soporta Wikipedia syntax, multiplicación implícita 2x, etc.)',
+      description: 'Evaluate a mathematical expression in plain text or LaTeX (supports Wikipedia-style syntax and implicit multiplication such as 2x).',
       parameters: {
         type: 'object',
         properties: {
-          expression: { type: 'string', description: 'Fórmula matemática (ej: "0.5 * m * v^2" o "\\frac{1}{2} m v^2")' },
-          scope: { type: 'object', description: 'Variables asociadas (ej: {"m": 10, "v": 20})' },
+          expression: { type: 'string', description: 'Mathematical expression (e.g. "0.5 * m * v^2" or "\\frac{1}{2} m v^2")' },
+          scope: { type: 'object', description: 'Variable bindings (e.g. {"m": 10, "v": 20})' },
         },
         required: ['expression'],
       },
     },
     {
       name: 'solveODE',
-      description: 'Resuelve un sistema de ecuaciones diferenciales dy/dt = f(t, y) con el método adaptativo Dormand-Prince (ODE45)',
+      description: 'Solve an ordinary differential equation system dy/dt = f(t, y) with the adaptive Dormand-Prince method (ODE45).',
       parameters: {
         type: 'object',
         properties: {
-          tSpan: { type: 'array', description: 'Intervalo de tiempo [t0, tf]' },
-          y0: { type: 'array', description: 'Condición inicial vectorial y0' },
+          tSpan: { type: 'array', description: 'Time interval [t0, tf]' },
+          y0: { type: 'array', description: 'Initial state vector y0' },
         },
         required: ['tSpan', 'y0'],
       },
     },
     {
       name: 'optimizeFunction',
-      description: 'Encuentra el mínimo local de una función multivariable en R^n usando Nelder-Mead Simplex sin derivadas',
+      description: 'Find a local minimum of a multivariable function in R^n using derivative-free Nelder-Mead simplex.',
       parameters: {
         type: 'object',
         properties: {
-          x0: { type: 'array', description: 'Punto de inicio inicial [x0, y0, ...]' },
+          x0: { type: 'array', description: 'Initial point [x0, y0, ...]' },
         },
         required: ['x0'],
       },
     },
     {
       name: 'convertUnits',
-      description: 'Convierte una cantidad física entre unidades compatibles (incluyendo temperaturas Celsius/Fahrenheit y unidades SI/imperiales)',
+      description: 'Convert a physical quantity between compatible units, including Celsius/Fahrenheit temperatures and SI/imperial units.',
       parameters: {
         type: 'object',
         properties: {
-          value: { type: 'number', description: 'Valor numérico' },
-          fromUnit: { type: 'string', description: 'Unidad de origen (ej: "km/h", "degC", "psi")' },
-          toUnit: { type: 'string', description: 'Unidad de destino (ej: "m/s", "degF", "bar")' },
+          value: { type: 'number', description: 'Numeric value' },
+          fromUnit: { type: 'string', description: 'Source unit (e.g. "km/h", "degC", "psi")' },
+          toUnit: { type: 'string', description: 'Target unit (e.g. "m/s", "degF", "bar")' },
         },
         required: ['value', 'fromUnit', 'toUnit'],
       },
@@ -83,7 +83,7 @@ export function getToolDefinitions(): ToolDefinition[] {
 }
 
 /**
- * Ejecuta una rutina matemática capturando errores y generando pistas de auto-corrección para agentes
+ * Run a mathematical operation, returning errors and repair hints for agents
  */
 export function tryEval(action: () => any): AgentDiagnostic {
   try {
@@ -91,16 +91,16 @@ export function tryEval(action: () => any): AgentDiagnostic {
     return { success: true, result };
   } catch (err: any) {
     const msg = err?.message || String(err);
-    let hint = 'Revisa la sintaxis de la función y los tipos de los argumentos pasados.';
+    let hint = 'Check the function syntax and the argument types.';
 
     if (msg.includes('Dimension mismatch') || msg.includes('Incompatible shapes')) {
-      hint = 'Las dimensiones de los tensores no son compatibles para esta operación. Considera aplicar transpose(A) o reshape(A, [...]).';
+      hint = 'The tensor dimensions are incompatible for this operation. Consider using transpose(A) or reshape(A, [...]).';
     } else if (msg.includes('Dimensional mismatch')) {
-      hint = 'Estás intentando sumar o restar cantidades con magnitudes físicas incompatibles (ej. longitud y tiempo).';
+      hint = 'You are trying to add or subtract incompatible physical quantities (for example, length and time).';
     } else if (msg.includes('Undefined variable')) {
-      hint = 'Una variable no fue declarada en el scope. Pasa un objeto scope con las variables requeridas (ej: { x: 5 }).';
+      hint = 'A variable was not declared in the scope. Pass a scope object with the required variables (e.g. { x: 5 }).';
     } else if (msg.includes('MethodError')) {
-      hint = 'No existe una sobrecarga de despacho múltiple para esa combinación de tipos. Verifica si requieres pasar NDArray en lugar de Array regular.';
+      hint = 'No multiple-dispatch overload exists for this combination of types. Check whether this operation requires an NDArray instead of a regular array.';
     }
 
     return {
@@ -113,7 +113,7 @@ export function tryEval(action: () => any): AgentDiagnostic {
 }
 
 /**
- * Calculador rápido que detecta si la entrada es texto plano o LaTeX y resuelve inmediatamente
+ * Detect whether the input is plain text or LaTeX and evaluate it immediately
  */
 export function quickCalc(formula: string, scope: Record<string, any> = {}): any {
   if (formula.includes('\\') || formula.includes('{') || formula.includes('}')) {

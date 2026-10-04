@@ -12,7 +12,7 @@ export type InterpMethod = 'linear' | 'nearest' | 'previous' | 'next';
 /**
  * Búsqueda binaria O(log N) del índice i tal que xArr[i] <= xq <= xArr[i+1]
  */
-function binarySearchInterval(xArr: Float64Array, xq: number): number {
+function binarySearchInterval(xArr: ArrayLike<number>, xq: number): number {
   let low = 0;
   let high = xArr.length - 2;
 

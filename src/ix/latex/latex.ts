@@ -47,6 +47,8 @@ export function latexToMathExpr(latex: string): string {
 
   // 8. Limpiar espacios redundantes
   s = s.replace(/\s+/g, ' ').trim();
+  s = s.replace(/\b([a-zA-Z_]\w*)\s+\(/g, '$1(');
+  s = s.replace(/(\)|\b[a-zA-Z_]\w*|\d+(?:\.\d+)?)(?=\s+[a-zA-Z_(])/g, '$1 *');
 
   return s;
 }

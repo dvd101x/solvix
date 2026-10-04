@@ -27,6 +27,13 @@ describe('ix / indexing / advanced-indexing', () => {
     expect(Array.from(filtered.data)).toEqual([1, 3, 5]);
   });
 
+  it('accepts Uint8Array masks and returns an empty result when nothing matches', () => {
+    const arr = new NDArray(new Float64Array([4, 5, 6]), { shape: [3] });
+
+    expect(Array.from(booleanMask(arr, new Uint8Array([0, 1, 1])).data)).toEqual([5, 6]);
+    expect(Array.from(booleanMask(arr, [false, false, false]).shape)).toEqual([0]);
+  });
+
   it('performs take / fancy indexing along an axis', () => {
     // 3x2 matrix:
     // [[10, 11],
@@ -43,12 +50,33 @@ describe('ix / indexing / advanced-indexing', () => {
     expect(res.get(1, 1)).toBe(11);
   });
 
+  it('supports negative axes, typed indices, and empty selections in take', () => {
+    const arr = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
+    const columns = take(arr, new Int32Array([2, 0]), -1);
+    const empty = take(arr, [], 0);
+
+    expect(Array.from(columns.shape)).toEqual([2, 2]);
+    expect(Array.from(columns.data)).toEqual([3, 1, 6, 4]);
+    expect(Array.from(empty.shape)).toEqual([0, 3]);
+    expect(empty.size).toBe(0);
+    expect(() => take(arr, [0], 2)).toThrowError(/Axis 2 out of bounds/);
+  });
+
   it('performs putMask in-place update', () => {
     const arr = new NDArray(new Float64Array([1, 2, 3, 4]), { shape: [4] });
     const mask = [false, true, false, true];
 
     putMask(arr, mask, 999);
     expect(Array.from(arr.data)).toEqual([1, 999, 3, 999]);
+  });
+
+  it('assigns successive NDArray values to selected mask positions', () => {
+    const arr = new NDArray(new Float64Array([1, 2, 3, 4]), { shape: [4] });
+    const values = new NDArray(new Float64Array([8, 9]), { shape: [2] });
+
+    putMask(arr, new Uint8Array([0, 1, 0, 1]), values);
+
+    expect(Array.from(arr.data)).toEqual([1, 8, 3, 9]);
   });
 
   it('supports slicing with ellipsis (...)', () => {
@@ -63,6 +91,11 @@ describe('ix / indexing / advanced-indexing', () => {
     expect(sliced.get(0, 1, 0)).toBe(4);
     expect(sliced.get(1, 0, 0)).toBe(6);
     expect(sliced.get(1, 1, 0)).toBe(8);
+  });
+
+  it('rejects multiple ellipses in one index', () => {
+    const arr = new NDArray(new Float64Array([1, 2, 3, 4]), { shape: [2, 2] });
+    expect(() => sliceWithEllipsis(arr, ELLIPSIS, ELLIPSIS)).toThrowError(/single ellipsis/);
   });
 });
 
@@ -83,6 +116,29 @@ describe('ix / parallel / workers & memory sharing', () => {
     expect(chunks[2]).toEqual({ start: 67, end: 100, length: 33 });
   });
 
+  it('partitions empty work and work into more workers than items', () => {
+    expect(partitionWork(0, 2)).toEqual([
+      { start: 0, end: 0, length: 0 },
+      { start: 0, end: 0, length: 0 },
+    ]);
+    expect(partitionWork(2, 4)).toEqual([
+      { start: 0, end: 1, length: 1 },
+      { start: 1, end: 2, length: 1 },
+      { start: 2, end: 2, length: 0 },
+      { start: 2, end: 2, length: 0 },
+    ]);
+  });
+
+  it('supports shared buffers with alternate typed-array constructors', () => {
+    const shared = createSharedNDArray([2], Int32Array);
+    shared.set(0, 12);
+    shared.set(1, 34);
+
+    expect(shared.data).toBeInstanceOf(Int32Array);
+    expect(shared.data.buffer).toBeInstanceOf(SharedArrayBuffer);
+    expect(Array.from(shared.data)).toEqual([12, 34]);
+  });
+
   it('prepares zero-copy transfers and reconstructs arrays', () => {
     const original = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
     const { message, transferables } = prepareTransfer(original);
@@ -93,6 +149,20 @@ describe('ix / parallel / workers & memory sharing', () => {
     const reconstructed = reconstructFromTransfer(message);
     expect(Array.from(reconstructed.shape)).toEqual([3]);
     expect(reconstructed.get(1)).toBe(2);
+  });
+
+  it('does not transfer shared buffers and preserves shared data on reconstruction', () => {
+    const original = createSharedNDArray([2]);
+    original.set(0, 7);
+    original.set(1, 11);
+
+    const { message, transferables } = prepareTransfer(original);
+    const reconstructed = reconstructFromTransfer(message);
+
+    expect(message.isShared).toBe(true);
+    expect(transferables).toEqual([]);
+    expect(reconstructed.data.buffer).toBeInstanceOf(SharedArrayBuffer);
+    expect(Array.from(reconstructed.data)).toEqual([7, 11]);
   });
 
   it('evaluates expressions in worker scope with Math built-ins', () => {
@@ -164,5 +234,29 @@ describe('ix / dag / computation graph', () => {
 
     const result = dag.evaluate('C') as NDArray;
     expect(Array.from(result.data)).toEqual([11, 22]);
+  });
+
+  it('memoizes computed nodes and invalidates them when dependencies change', () => {
+    const dag = new ExpressionDAG();
+    let calls = 0;
+    dag.variable('input', 2);
+    dag.op('result', ['input'], (value) => {
+      calls++;
+      return value * 3;
+    });
+
+    expect(dag.evaluate('result')).toBe(6);
+    expect(dag.evaluate('result')).toBe(6);
+    expect(calls).toBe(1);
+
+    dag.setVariable('input', 4);
+    expect(dag.evaluate('result')).toBe(12);
+    expect(calls).toBe(2);
+  });
+
+  it('reports unregistered dependencies and unknown evaluation targets', () => {
+    const dag = new ExpressionDAG();
+    expect(() => dag.op('result', ['missing'], (value) => value)).toThrowError(/Dependency missing/);
+    expect(() => dag.evaluate('missing')).toThrowError(/Target node missing/);
   });
 });

@@ -101,7 +101,8 @@ export function tokenize(expr: string): Token[] {
       const isCurEnd = cur.type === 'NUMBER' || cur.type === 'IDENTIFIER' || cur.type === 'RPAREN';
       const isNextStart = next.type === 'IDENTIFIER' || next.type === 'LPAREN';
 
-      if (isCurEnd && isNextStart) {
+      const isFunctionCall = cur.type === 'IDENTIFIER' && next.type === 'LPAREN';
+      if (isCurEnd && isNextStart && !isFunctionCall) {
         withImplicitMul.push({ type: 'OPERATOR', value: '*' });
       }
     }
@@ -214,6 +215,21 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
     floor: Math.floor,
     ceil: Math.ceil,
     round: Math.round,
+    sign: Math.sign,
+    trunc: Math.trunc,
+    log2: Math.log2,
+    log10: Math.log10,
+    log1p: Math.log1p,
+    expm1: Math.expm1,
+    sinh: Math.sinh,
+    cosh: Math.cosh,
+    tanh: Math.tanh,
+    atan2: Math.atan2,
+    hypot: Math.hypot,
+    min: Math.min,
+    max: Math.max,
+    pow: Math.pow,
+    clamp: (value: number, min: number, max: number) => Math.min(Math.max(value, min), max),
   };
 
   switch (ast.type) {
