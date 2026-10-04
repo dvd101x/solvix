@@ -1,0 +1,37 @@
+{
+  "name": "math-superset",
+  "version": "0.1.0",
+  "description": "Scientific computing superset for TypeScript with Julia-style Multiple Dispatch and high-performance adapters",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build:grammar": "lezer-generator src/grammar/syntax.grammar -o src/grammar/parser.js",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "bench": "node --loader ts-node/esm benchmarks/bench.ts"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.0",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.4",
+    "@lezer/common": "^1.2.3",
+    "@lezer/generator": "^1.7.2",
+    "@lezer/highlight": "^1.2.1",
+    "@stdlib/math-base-special-besselj": "^0.2.2",
+    "@tensorflow/tfjs": "^4.22.0",
+    "mathjs": "^14.0.1",
+    "ml-matrix": "^6.12.1",
+    "numjs": "^0.16.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/numjs": "^0.16.4",
+    "mitata": "^1.0.34",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}
