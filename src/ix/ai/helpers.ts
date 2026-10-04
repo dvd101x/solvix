@@ -28,12 +28,12 @@ const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: 
   ode45: {
     desc: 'Adaptive Dormand-Prince Runge-Kutta solver for ordinary differential equations.',
     signature: 'ode45(f: (t, y) => NDArray, tSpan: [t0, tf], y0: NDArray, opts?): ODESolution',
-    example: 'const sol = solvix.ode45((t, y) => solvix.mul(y, -1), [0, 5], solvix.NDArray.ones([1]));',
+    example: 'const f = (t, y) => new solvix.NDArray(new Float64Array([-y.get(0)]), { shape: [1] }); solvix.ode45(f, [0, 5], solvix.NDArray.ones([1]));',
   },
   fsolve: {
     desc: 'Solves nonlinear systems F(x) = 0 using Newton-Raphson.',
     signature: 'fsolve(F: (x: NDArray) => NDArray, x0: NDArray | number[], opts?): FsolveResult',
-    example: 'const { x } = solvix.fsolve((v) => solvix.sub(solvix.pow(v, 2), 2), [1.0]);',
+    example: 'const F = (x) => new solvix.NDArray(new Float64Array([x.get(0)**2 - 2]), { shape: [1] }); solvix.fsolve(F, [1]);',
   },
   nelderMead: {
     desc: 'Derivative-free multivariable minimization (simplex) for finding local minima.',
@@ -44,6 +44,56 @@ const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: 
     desc: 'Adaptive Simpson quadrature for continuous functions on [a, b].',
     signature: 'quad(f: (x: number) => number, a: number, b: number, tol?): number',
     example: 'const area = solvix.quad((x) => Math.sin(x), 0, Math.PI); // ≈ 2.0',
+  },
+  evaluate: {
+    desc: 'Evaluates a mathematical expression with optional variable and function bindings.',
+    signature: 'evaluate(expression: string, scope?: Record<string, unknown>): unknown',
+    example: 'solvix.evaluate("hypot(x, y)", { x: 3, y: 4 }); // 5',
+  },
+  compile: {
+    desc: 'Compiles an expression once and returns a reusable evaluator.',
+    signature: 'compile(expression: string): (scope?: Record<string, unknown>) => unknown',
+    example: 'const f = solvix.compile("x^2"); f({ x: 4 }); // 16',
+  },
+  where: {
+    desc: 'Selects values element-wise where the condition is nonzero; array arguments must have matching shapes.',
+    signature: 'where(condition: NDArray, whenTrue: NDArray | number, whenFalse: NDArray | number): NDArray',
+    example: 'const mask = solvix.NDArray.fromArray([1, 0, 1]); const values = solvix.NDArray.fromArray([3, 4, 5]); solvix.where(mask, values, 0);',
+  },
+  all: {
+    desc: 'Returns true when every element is nonzero.',
+    signature: 'all(arr: NDArray): boolean',
+    example: 'solvix.all(mask);',
+  },
+  any: {
+    desc: 'Returns true when at least one element is nonzero.',
+    signature: 'any(arr: NDArray): boolean',
+    example: 'solvix.any(mask);',
+  },
+  countNonzero: {
+    desc: 'Counts nonzero elements, including non-finite values such as NaN.',
+    signature: 'countNonzero(arr: NDArray): number',
+    example: 'solvix.countNonzero(values);',
+  },
+  sumProduct: {
+    desc: 'Sums element-wise products of one or more NDArrays with identical shapes.',
+    signature: 'sumProduct(...arrays: NDArray[]): number',
+    example: 'solvix.sumProduct(solvix.NDArray.fromArray([1, 2]), solvix.NDArray.fromArray([3, 4])); // 11',
+  },
+  toNestedArray: {
+    desc: 'Copies an NDArray view into nested JavaScript arrays while respecting its shape, strides, and offset.',
+    signature: 'NDArray.toNestedArray(): number | NestedNumberArray',
+    example: 'const rows = solvix.transpose(solvix.NDArray.fromArray([[1, 2], [3, 4]])).toNestedArray();',
+  },
+  fromLaTeX: {
+    desc: 'Parses and evaluates a LaTeX expression with an optional variable scope.',
+    signature: 'fromLaTeX(expression: string, scope?: Record<string, unknown>): unknown',
+    example: 'solvix.fromLaTeX("x^2 + y^2", { x: 3, y: 4 }); // 25',
+  },
+  quickCalc: {
+    desc: 'Evaluates plain-text or LaTeX expressions, detecting the input format automatically.',
+    signature: 'quickCalc(expression: string, scope?: Record<string, unknown>): unknown',
+    example: 'solvix.quickCalc("10 / 2"); // 5',
   },
 };
 

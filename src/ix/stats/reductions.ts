@@ -135,6 +135,28 @@ export function sumProduct(...arrays: NDArray[]): number {
   return result;
 }
 
+export function all(arr: NDArray): boolean {
+  for (const value of arr) {
+    if (value === 0) return false;
+  }
+  return true;
+}
+
+export function any(arr: NDArray): boolean {
+  for (const value of arr) {
+    if (value !== 0) return true;
+  }
+  return false;
+}
+
+export function countNonzero(arr: NDArray): number {
+  let count = 0;
+  for (const value of arr) {
+    if (value !== 0) count++;
+  }
+  return count;
+}
+
 export function prod(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
     let p = 1;

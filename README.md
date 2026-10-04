@@ -122,6 +122,19 @@ const tensor = new NDArray(data, { shape: [4, 5, 6, 2] });
 const slice = sliceWithEllipsis(tensor, ELLIPSIS, 1);
 ```
 
+#### D. Conditional Selection and Mask Reductions
+```typescript
+import { NDArray, where, all, any, countNonzero } from 'solvix';
+
+const mask = NDArray.fromArray([1, 0, 1]);
+const values = NDArray.fromArray([10, 20, 30]);
+const selected = where(mask, values, 0); // [10, 0, 30]
+
+all(mask);          // false
+any(mask);          // true
+countNonzero(mask); // 2
+```
+
 ---
 
 ### 2. Parallelism and Concurrency with Workers
@@ -740,6 +753,7 @@ const diag = tryEval(() => {
 });
 
 if (!diag.success) {
+  console.log(diag.code);      // e.g. "UNDEFINED_VARIABLE"
   console.log(diag.message);   // "Undefined variable in scope: variable_no_declarada"
   console.log(diag.agentHint); // "A variable was not declared in the scope. Pass a scope object..."
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   NDArray,
   booleanMask,
+  where,
   take,
   putMask,
   sliceWithEllipsis,
@@ -32,6 +33,16 @@ describe('ix / indexing / advanced-indexing', () => {
 
     expect(Array.from(booleanMask(arr, new Uint8Array([0, 1, 1])).data)).toEqual([5, 6]);
     expect(Array.from(booleanMask(arr, [false, false, false]).shape)).toEqual([0]);
+  });
+
+  it('selects values with where using scalars or matching arrays', () => {
+    const condition = new NDArray(new Float64Array([0, 1, NaN]), { shape: [3] });
+    const values = new NDArray(new Float64Array([10, 20, 30]), { shape: [3] });
+    const fallback = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
+
+    expect(Array.from(where(condition, 5, -1).data)).toEqual([-1, 5, 5]);
+    expect(Array.from(where(condition, values, fallback).data)).toEqual([1, 20, 30]);
+    expect(() => where(condition, NDArray.zeros([1]), 0)).toThrowError(/same shape as condition/);
   });
 
   it('performs take / fancy indexing along an axis', () => {

@@ -23,6 +23,9 @@ import {
   median,
   quantile,
   sumProduct,
+  all,
+  any,
+  countNonzero,
   skew,
   kurtosis,
   describe as statsDescribe,
@@ -148,6 +151,21 @@ describe('ix / stats / reductions with axis and pandas statistics', () => {
     expect(sumProduct(NDArray.zeros([0]))).toBe(0);
     expect(() => sumProduct()).toThrow(RangeError);
     expect(() => sumProduct(strided, NDArray.zeros([4]))).toThrowError(/identical shapes/);
+  });
+
+  it('reduces numeric truth values and counts NaN as nonzero', () => {
+    const values = new NDArray(new Float64Array([0, -2, NaN]), { shape: [3] });
+    const zeros = NDArray.zeros([2]);
+    const empty = NDArray.zeros([0]);
+
+    expect(all(values)).toBe(false);
+    expect(any(values)).toBe(true);
+    expect(countNonzero(values)).toBe(2);
+    expect(all(zeros)).toBe(false);
+    expect(any(zeros)).toBe(false);
+    expect(all(empty)).toBe(true);
+    expect(any(empty)).toBe(false);
+    expect(countNonzero(empty)).toBe(0);
   });
 
   it('computes median and quantiles', () => {

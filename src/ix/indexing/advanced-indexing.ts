@@ -41,6 +41,31 @@ export function booleanMask(arr: NDArray, mask: NDArray | Uint8Array | boolean[]
   return new NDArray(outData, { shape: [matches.length], order: arr.order });
 }
 
+export function where(condition: NDArray, whenTrue: NDArray | number, whenFalse: NDArray | number): NDArray {
+  for (const value of [whenTrue, whenFalse]) {
+    if (
+      value instanceof NDArray &&
+      (value.ndim !== condition.ndim || value.shape.some((size, axis) => size !== condition.shape[axis]))
+    ) {
+      throw new Error('where array arguments must have the same shape as condition');
+    }
+  }
+
+  const conditionValues = condition[Symbol.iterator]();
+  const trueValues = whenTrue instanceof NDArray ? whenTrue[Symbol.iterator]() : undefined;
+  const falseValues = whenFalse instanceof NDArray ? whenFalse[Symbol.iterator]() : undefined;
+  const outData = new Float64Array(condition.size);
+
+  for (let i = 0; i < condition.size; i++) {
+    const selected = conditionValues.next().value !== 0;
+    const trueValue = trueValues ? trueValues.next().value! : whenTrue as number;
+    const falseValue = falseValues ? falseValues.next().value! : whenFalse as number;
+    outData[i] = selected ? trueValue : falseValue;
+  }
+
+  return new NDArray(outData, { shape: Array.from(condition.shape), order: condition.order });
+}
+
 /**
  * Extrae elementos a lo largo de un eje usando una lista de índices enteros (Fancy indexing / take).
  * @param arr NDArray de origen

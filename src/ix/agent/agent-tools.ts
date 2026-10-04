@@ -11,10 +11,20 @@ import { fromLaTeX } from '../latex/latex.js';
 export interface AgentDiagnostic {
   success: boolean;
   result?: any;
+  code?: AgentErrorCode;
   errorType?: string;
   message?: string;
   agentHint?: string;
 }
+
+export type AgentErrorCode =
+  | 'SYNTAX_ERROR'
+  | 'UNDEFINED_VARIABLE'
+  | 'UNKNOWN_FUNCTION'
+  | 'DIMENSION_MISMATCH'
+  | 'UNIT_MISMATCH'
+  | 'METHOD_NOT_FOUND'
+  | 'EVALUATION_ERROR';
 
 export interface ToolDefinition {
   name: string;
@@ -91,20 +101,32 @@ export function tryEval(action: () => any): AgentDiagnostic {
     return { success: true, result };
   } catch (err: any) {
     const msg = err?.message || String(err);
+    let code: AgentErrorCode = 'EVALUATION_ERROR';
     let hint = 'Check the function syntax and the argument types.';
 
-    if (msg.includes('Dimension mismatch') || msg.includes('Incompatible shapes')) {
+    if (err instanceof SyntaxError) {
+      code = 'SYNTAX_ERROR';
+      hint = 'Check operator placement, parentheses, and function argument separators.';
+    } else if (msg.includes('Dimension mismatch') || msg.includes('Incompatible shapes')) {
+      code = 'DIMENSION_MISMATCH';
       hint = 'The tensor dimensions are incompatible for this operation. Consider using transpose(A) or reshape(A, [...]).';
     } else if (msg.includes('Dimensional mismatch')) {
+      code = 'UNIT_MISMATCH';
       hint = 'You are trying to add or subtract incompatible physical quantities (for example, length and time).';
     } else if (msg.includes('Undefined variable')) {
+      code = 'UNDEFINED_VARIABLE';
       hint = 'A variable was not declared in the scope. Pass a scope object with the required variables (e.g. { x: 5 }).';
+    } else if (msg.includes('Unknown function')) {
+      code = 'UNKNOWN_FUNCTION';
+      hint = 'The function is not built in or present in the scope. Check its spelling or pass it as a scope function.';
     } else if (msg.includes('MethodError')) {
+      code = 'METHOD_NOT_FOUND';
       hint = 'No multiple-dispatch overload exists for this combination of types. Check whether this operation requires an NDArray instead of a regular array.';
     }
 
     return {
       success: false,
+      code,
       errorType: err.name || 'Error',
       message: msg,
       agentHint: hint,

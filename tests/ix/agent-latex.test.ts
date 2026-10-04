@@ -81,7 +81,14 @@ describe('ix / agent / AI tool calling, auto-repair & quickCalc', () => {
     // 2. Variable no declarada
     const diagVar = tryEval(() => evaluate('2 * foo'));
     expect(diagVar.success).toBe(false);
+    expect(diagVar.code).toBe('UNDEFINED_VARIABLE');
     expect(diagVar.agentHint).toContain('A variable was not declared');
+
+    const diagFunction = tryEval(() => evaluate('missingFunction(1)'));
+    expect(diagFunction.code).toBe('UNKNOWN_FUNCTION');
+
+    const diagSyntax = tryEval(() => evaluate('2 +'));
+    expect(diagSyntax.code).toBe('SYNTAX_ERROR');
   });
 
   it('provides quickCalc for instant calculation of text or LaTeX', () => {

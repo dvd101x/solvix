@@ -200,6 +200,12 @@ describe('ix / ai / helpers & prompts', () => {
     const doc = help('linspace');
     expect(doc).toContain('linspace');
     expect(doc).toContain('Signature:');
+
+    expect(help('sumProduct')).toContain('identical shapes');
+    expect(help('where')).toContain('matching shapes');
+    expect(help(NDArray.prototype.toNestedArray)).toContain('strides');
+    expect(help('compile')).toContain('reusable evaluator');
+    expect(help('unknownTopic')).toContain('toNestedArray');
   });
 
   it('generates concise tensor summaries for LLMs', () => {
