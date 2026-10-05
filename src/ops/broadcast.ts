@@ -20,7 +20,7 @@ export function broadcastShapes(
     const dimB = i < ndimB ? shapeB[ndimB - 1 - i] : 1;
 
     if (dimA === dimB || dimA === 1 || dimB === 1) {
-      resultShape[maxDim - 1 - i] = Math.max(dimA, dimB);
+      resultShape[maxDim - 1 - i] = dimA === 1 ? dimB : dimA;
     } else {
       throw new Error(
         `Incompatible shapes for broadcasting: [${Array.from(shapeA)}] and [${Array.from(shapeB)}]`

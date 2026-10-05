@@ -122,6 +122,12 @@ function complexPow(ar: number, ai: number, br: number, bi: number): [number, nu
   return [m * Math.cos(ei), m * Math.sin(ei)];
 }
 
+function dot(coords: Int32Array, strides: Int32Array, n: number): number {
+  let sum = 0;
+  for (let d = 0; d < n; d++) sum += coords[d] * strides[d];
+  return sum;
+}
+
 /**
  * Applies a binary operation with broadcasting. At least one operand must be an NDArray.
  */
@@ -140,51 +146,59 @@ export function binaryOp(name: BinaryName, left: Scalar | NDArray, right: Scalar
   const complex = !!(a.imag || b.imag);
   const outRe = new Float64Array(size);
   const outIm = complex ? new Float64Array(size) : undefined;
-  const coords = new Int32Array(ndim);
+  if (size === 0) return new NDArray(outRe, { shape: Array.from(shape), imag: outIm, unit });
 
-  for (let n = 0; n < size; n++) {
-    let ia = a.offset;
-    let ib = b.offset;
-    for (let d = 0; d < ndim; d++) {
-      ia += coords[d] * sa[d];
-      ib += coords[d] * sb[d];
-    }
-    const ar = a.data[ia];
-    const br = b.data[ib];
+  // Walk the result one "line" (last axis) at a time: only the outer coordinates need index
+  // arithmetic, and the operation is chosen once per line instead of once per element.
+  const inner = ndim === 0 ? 1 : shape[ndim - 1];
+  const stepA = ndim === 0 ? 0 : sa[ndim - 1];
+  const stepB = ndim === 0 ? 0 : sb[ndim - 1];
+  const outerDims = Math.max(ndim - 1, 0);
+  const coords = new Int32Array(outerDims);
+  const ad = a.data;
+  const bd = b.data;
+
+  for (let n = 0; n < size; n += inner) {
+    const baseA = a.offset + dot(coords, sa, outerDims);
+    const baseB = b.offset + dot(coords, sb, outerDims);
 
     if (!complex) {
       switch (name) {
-        case 'add': outRe[n] = ar + br; break;
-        case 'sub': outRe[n] = ar - br; break;
-        case 'mul': outRe[n] = ar * br; break;
-        case 'div': outRe[n] = ar / br; break;
-        case 'pow': outRe[n] = Math.pow(ar, br); break;
+        case 'add': for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) outRe[n + k] = ad[ia] + bd[ib]; break;
+        case 'sub': for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) outRe[n + k] = ad[ia] - bd[ib]; break;
+        case 'mul': for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) outRe[n + k] = ad[ia] * bd[ib]; break;
+        case 'div': for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) outRe[n + k] = ad[ia] / bd[ib]; break;
+        case 'pow': for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) outRe[n + k] = Math.pow(ad[ia], bd[ib]); break;
       }
     } else {
-      const ai = a.imag ? a.imag[ia] : 0;
-      const bi = b.imag ? b.imag[ib] : 0;
-      switch (name) {
-        case 'add': outRe[n] = ar + br; outIm![n] = ai + bi; break;
-        case 'sub': outRe[n] = ar - br; outIm![n] = ai - bi; break;
-        case 'mul': outRe[n] = ar * br - ai * bi; outIm![n] = ar * bi + ai * br; break;
-        case 'div': {
-          const den = br * br + bi * bi;
-          outRe[n] = (ar * br + ai * bi) / den;
-          outIm![n] = (ai * br - ar * bi) / den;
-          break;
-        }
-        case 'pow': {
-          const [r, i] = complexPow(ar, ai, br, bi);
-          outRe[n] = r;
-          outIm![n] = i;
-          break;
+      for (let k = 0, ia = baseA, ib = baseB; k < inner; k++, ia += stepA, ib += stepB) {
+        const ar = ad[ia];
+        const br = bd[ib];
+        const ai = a.imag ? a.imag[ia] : 0;
+        const bi = b.imag ? b.imag[ib] : 0;
+        const o = n + k;
+        switch (name) {
+          case 'add': outRe[o] = ar + br; outIm![o] = ai + bi; break;
+          case 'sub': outRe[o] = ar - br; outIm![o] = ai - bi; break;
+          case 'mul': outRe[o] = ar * br - ai * bi; outIm![o] = ar * bi + ai * br; break;
+          case 'div': {
+            const den = br * br + bi * bi;
+            outRe[o] = (ar * br + ai * bi) / den;
+            outIm![o] = (ai * br - ar * bi) / den;
+            break;
+          }
+          case 'pow': {
+            const [r, i] = complexPow(ar, ai, br, bi);
+            outRe[o] = r;
+            outIm![o] = i;
+            break;
+          }
         }
       }
     }
 
-    for (let d = ndim - 1; d >= 0; d--) {
-      coords[d]++;
-      if (coords[d] < shape[d]) break;
+    for (let d = outerDims - 1; d >= 0; d--) {
+      if (++coords[d] < shape[d]) break;
       coords[d] = 0;
     }
   }

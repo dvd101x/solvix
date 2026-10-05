@@ -25,7 +25,7 @@ export interface RollingWindow {
 export function rolling(arr: NDArray, windowSize: number): RollingWindow {
   if (windowSize <= 0) throw new RangeError(`Window size must be positive, got ${windowSize}`);
   const n = arr.size;
-  const data = arr.data;
+  const data = arr.contiguous().data;
 
   return {
     mean(): NDArray {
@@ -120,7 +120,7 @@ export function ewm(arr: NDArray, opts: { alpha?: number; span?: number }): NDAr
   const alpha = opts.alpha ?? (opts.span ? 2 / (opts.span + 1) : 0.2);
   const n = arr.size;
   const out = new Float64Array(n);
-  const data = arr.data;
+  const data = arr.contiguous().data;
 
   if (n === 0) return new NDArray(out, { shape: [0] });
 
@@ -138,7 +138,7 @@ export function ewm(arr: NDArray, opts: { alpha?: number; span?: number }): NDAr
 export function diff(arr: NDArray, periods: number = 1): NDArray {
   const n = arr.size;
   const out = new Float64Array(n);
-  const data = arr.data;
+  const data = arr.contiguous().data;
 
   for (let i = 0; i < n; i++) {
     if (i < periods) {
@@ -157,7 +157,7 @@ export function diff(arr: NDArray, periods: number = 1): NDArray {
 export function pctChange(arr: NDArray, periods: number = 1): NDArray {
   const n = arr.size;
   const out = new Float64Array(n);
-  const data = arr.data;
+  const data = arr.contiguous().data;
 
   for (let i = 0; i < n; i++) {
     if (i < periods || data[i - periods] === 0) {
@@ -176,7 +176,7 @@ export function pctChange(arr: NDArray, periods: number = 1): NDArray {
 export function shift(arr: NDArray, periods: number = 1, fillValue: number = NaN): NDArray {
   const n = arr.size;
   const out = new Float64Array(n);
-  const data = arr.data;
+  const data = arr.contiguous().data;
 
   for (let i = 0; i < n; i++) {
     const src = i - periods;
@@ -203,7 +203,7 @@ export function isnan(arr: NDArray): NDArray {
 
 export function fillna(arr: NDArray, method: number | 'ffill' | 'bfill'): NDArray {
   const out = new Float64Array(arr.size);
-  const data = arr.data;
+  const data = arr.contiguous().data;
   const n = arr.size;
 
   if (typeof method === 'number') {

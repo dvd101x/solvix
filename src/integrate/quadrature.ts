@@ -6,13 +6,13 @@
  * - quad: Cuadratura adaptativa de Gauss-Kronrod / Simpson adaptativa para funciones continuas f(x)
  * - cumulativeIntegrate: Integral acumulativa 1D (ej. aceleración -> velocidad -> posición)
  */
-import { NDArray } from '../core/ndarray.js';
+import { NDArray, toFloat64 } from '../core/ndarray.js';
 
 /**
  * Regla del trapecio sobre muestras discretas y(x)
  */
 export function trapz(y: NDArray | Float64Array | number[], x?: NDArray | Float64Array | number[], dx = 1.0): number {
-  const yData = y instanceof NDArray ? y.data : new Float64Array(y);
+  const yData = toFloat64(y);
   const n = yData.length;
   if (n < 2) return 0;
 
@@ -22,7 +22,7 @@ export function trapz(y: NDArray | Float64Array | number[], x?: NDArray | Float6
     return sum * dx;
   }
 
-  const xData = x instanceof NDArray ? x.data : new Float64Array(x);
+  const xData = toFloat64(x);
   let total = 0;
   for (let i = 0; i < n - 1; i++) {
     const h = xData[i + 1] - xData[i];
@@ -35,11 +35,11 @@ export function trapz(y: NDArray | Float64Array | number[], x?: NDArray | Float6
  * Regla de Simpson compuesta (1/3) para datos discretos equiespaciados o con vector x
  */
 export function simpson(y: NDArray | Float64Array | number[], x?: NDArray | Float64Array | number[], dx = 1.0): number {
-  const yData = y instanceof NDArray ? y.data : new Float64Array(y);
+  const yData = toFloat64(y);
   const n = yData.length;
   if (n < 3) return trapz(y, x, dx);
 
-  const xData = x ? (x instanceof NDArray ? x.data : new Float64Array(x)) : null;
+  const xData = x ? (toFloat64(x)) : null;
   const h = xData ? (xData[n - 1] - xData[0]) / (n - 1) : dx;
 
   let sumOdd = 0;
@@ -115,8 +115,8 @@ export function quad(f: (x: number) => number, a: number, b: number, tol = 1e-8,
  */
 export function cumulativeIntegrate(y: NDArray, x?: NDArray, dx = 1.0): NDArray {
   const n = y.size;
-  const yData = y.data;
-  const xData = x ? x.data : null;
+  const yData = toFloat64(y);
+  const xData = x ? toFloat64(x) : null;
   const out = new Float64Array(n);
 
   let accum = 0;

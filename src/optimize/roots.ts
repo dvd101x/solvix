@@ -118,7 +118,7 @@ export function fzero(
 function computeJacobian(F: (x: NDArray) => NDArray, x: NDArray, eps = 1e-7): NDArray {
   const n = x.size;
   const JData = new Float64Array(n * n);
-  const xData = new Float64Array(x.data);
+  const xData = Float64Array.from(x.contiguous().data);
 
   for (let j = 0; j < n; j++) {
     const orig = xData[j];
@@ -132,7 +132,7 @@ function computeJacobian(F: (x: NDArray) => NDArray, x: NDArray, eps = 1e-7): ND
     xData[j] = orig; // restaurar
 
     for (let i = 0; i < n; i++) {
-      JData[i * n + j] = (fPlus.data[i] - fMinus.data[i]) / (2 * eps);
+      JData[i * n + j] = (fPlus.contiguous().data[i] - fMinus.contiguous().data[i]) / (2 * eps);
     }
   }
 

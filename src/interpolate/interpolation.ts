@@ -4,7 +4,8 @@
  * - interp1d: Interpolación lineal, vecino más cercano (nearest) y cúbica hermite
  * - cubicSpline: Trazador cúbico natural (Natural Cubic Splines) con derivada segunda continua
  */
-import { NDArray } from '../core/ndarray.js';
+import { NDArray, toFloat64 } from '../core/ndarray.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
 import { solve } from '../linalg/factorizations.js';
 
 export type InterpMethod = 'linear' | 'nearest' | 'previous' | 'next';
@@ -41,8 +42,8 @@ export function interp1d(
   y: NDArray | Float64Array | number[],
   opts: { method?: InterpMethod; fillValue?: number } = {}
 ): (xq: number | NDArray | number[]) => any {
-  const xData = x instanceof NDArray ? x.data : new Float64Array(x);
-  const yData = y instanceof NDArray ? y.data : new Float64Array(y);
+  const xData = toFloat64(x);
+  const yData = toFloat64(y);
   const method = opts.method ?? 'linear';
   const fillValue = opts.fillValue ?? NaN;
   const n = xData.length;
@@ -75,15 +76,8 @@ export function interp1d(
     }
   }
 
-  return (xq: number | NDArray | number[]) => {
-    if (typeof xq === 'number') return evaluateSingle(xq);
-    const queryArr = xq instanceof NDArray ? xq.data : new Float64Array(xq);
-    const out = new Float64Array(queryArr.length);
-    for (let k = 0; k < queryArr.length; k++) {
-      out[k] = evaluateSingle(queryArr[k]);
-    }
-    return new NDArray(out, { shape: [queryArr.length] });
-  };
+  return (xq: number | NDArray | number[]) =>
+    typeof xq === 'number' ? evaluateSingle(xq) : broadcastMap(evaluateSingle, xq);
 }
 
 /**
@@ -93,8 +87,8 @@ export function cubicSpline(
   x: NDArray | Float64Array | number[],
   y: NDArray | Float64Array | number[]
 ): (xq: number | NDArray | number[]) => any {
-  const xData = x instanceof NDArray ? x.data : new Float64Array(x);
-  const yData = y instanceof NDArray ? y.data : new Float64Array(y);
+  const xData = toFloat64(x);
+  const yData = toFloat64(y);
   const n = xData.length;
 
   // Paso h_i = x_{i+1} - x_i
@@ -140,11 +134,6 @@ export function cubicSpline(
     );
   }
 
-  return (xq: number | NDArray | number[]) => {
-    if (typeof xq === 'number') return evalSpline(xq);
-    const queryArr = xq instanceof NDArray ? xq.data : new Float64Array(xq);
-    const out = new Float64Array(queryArr.length);
-    for (let k = 0; k < queryArr.length; k++) out[k] = evalSpline(queryArr[k]);
-    return new NDArray(out, { shape: [queryArr.length] });
-  };
+  return (xq: number | NDArray | number[]) =>
+    typeof xq === 'number' ? evalSpline(xq) : broadcastMap(evalSpline, xq);
 }

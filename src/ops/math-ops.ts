@@ -7,7 +7,7 @@ import { Complex } from '../types/complex.js';
 import { Fraction } from '../types/fraction.js';
 import { Quantity } from '../units/units.js';
 import { broadcastShapes } from './broadcast.js';
-import { binaryOp } from './elementwise.js';
+import { binaryOp, addElementwise } from './elementwise.js';
 
 export { broadcastShapes };
 
@@ -19,6 +19,14 @@ for (const scalarType of ['number', Complex, Quantity] as const) {
   add.add([scalarType, NDArray], (s: any, arr: NDArray) => binaryOp('add', s, arr));
 }
 add.add([NDArray, NDArray], (a: NDArray, b: NDArray): NDArray => binaryOp('add', a, b));
+
+// Complex / Quantity scalar pairs (number + number is registered below)
+for (const l of ['number', Complex, Quantity] as const) {
+  for (const r of ['number', Complex, Quantity] as const) {
+    if (l === 'number' && r === 'number') continue;
+    add.add([l, r], (a: any, b: any) => addElementwise(a, b));
+  }
+}
 
 // Number + Number
 add.add(['number', 'number'], (a: number, b: number): number => a + b);

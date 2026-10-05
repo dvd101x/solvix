@@ -6,7 +6,7 @@
  * - Filtro IIR Pasa-Bajas / Pasa-Altas de 1er orden
  * - Generadores de señales (sinewave, squarewave, sawtooth, chirp)
  */
-import { NDArray } from '../core/ndarray.js';
+import { NDArray, toFloat64 } from '../core/ndarray.js';
 import { Complex, complex } from '../types/complex.js';
 
 export interface FFTResult {
@@ -20,7 +20,7 @@ export interface FFTResult {
  * FFT 1D Cooley-Tukey Radix-2 (Decimation-in-time)
  */
 export function fft(signal: NDArray | Float64Array | number[], sampleRate = 1.0): FFTResult {
-  const inData = signal instanceof NDArray ? signal.data : new Float64Array(signal);
+  const inData = toFloat64(signal);
   const origN = inData.length;
 
   // Rellenar con ceros hasta la siguiente potencia de 2 (Zero-padding)
@@ -99,8 +99,8 @@ export function fft(signal: NDArray | Float64Array | number[], sampleRate = 1.0)
  * Convolución discreta lineal 1D: (x * h)[n]
  */
 export function convolve(x: NDArray | Float64Array, h: NDArray | Float64Array): NDArray {
-  const xData = x instanceof NDArray ? x.data : x;
-  const hData = h instanceof NDArray ? h.data : h;
+  const xData = toFloat64(x);
+  const hData = toFloat64(h);
   const nx = xData.length;
   const nh = hData.length;
   const outLen = nx + nh - 1;
@@ -126,7 +126,7 @@ export function lowpassFilter(signal: NDArray, cutoffFreq: number, sampleRate: n
 
   const n = signal.size;
   const out = new Float64Array(n);
-  const data = signal.data;
+  const data = signal.contiguous().data;
 
   if (n === 0) return new NDArray(out, { shape: [0] });
   out[0] = data[0];

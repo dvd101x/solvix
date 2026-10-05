@@ -236,6 +236,22 @@ export class NDArray {
     });
   }
 
+  /** True when elements are laid out row-major from offset 0 with no gaps. */
+  public get isContiguous(): boolean {
+    if (this.offset !== 0 || this.data.length !== this.size) return false;
+    let expected = 1;
+    for (let d = this.ndim - 1; d >= 0; d--) {
+      if (this.shape[d] !== 1 && this.strides[d] !== expected) return false;
+      expected *= this.shape[d];
+    }
+    return true;
+  }
+
+  /** This array when already contiguous, otherwise a contiguous row-major copy (never mutate the result). */
+  public contiguous(): NDArray {
+    return this.isContiguous ? this : this.copy();
+  }
+
   /** Contiguous row-major copy that preserves the imaginary part and the unit. */
   public copy(): NDArray {
     const out = new Float64Array(this.size);
@@ -379,4 +395,9 @@ export class NDArray {
       imag: Float64Array.from(im),
     });
   }
+}
+
+/** Real values of an array (any strides/offset) or plain sequence as a contiguous buffer. */
+export function toFloat64(x: NDArray | ArrayLike<number>): ArrayLike<number> {
+  return x instanceof NDArray ? x.contiguous().data : Float64Array.from(x);
 }

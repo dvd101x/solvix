@@ -5,7 +5,7 @@
  * - nelderMead: Optimización multivariable sin derivadas (Simplex) para R^n
  * - curveFit: Ajuste de curvas no lineales y calibración de modelos
  */
-import { NDArray } from '../core/ndarray.js';
+import { NDArray, toFloat64 } from '../core/ndarray.js';
 
 export interface MinScalarResult {
   x: number;
@@ -76,7 +76,7 @@ export function nelderMead(
   const tol = opts.tol ?? 1e-8;
   const maxIter = opts.maxIter ?? 500;
 
-  const startVec = x0 instanceof NDArray ? Array.from(x0.data) : [...x0];
+  const startVec = Array.from(toFloat64(x0));
   const n = startVec.length;
 
   // Construir simplex de n + 1 vértices
@@ -183,8 +183,8 @@ export function curveFit(
   yData: NDArray | number[],
   p0: NDArray | number[]
 ): MinMultivarResult {
-  const xs = xData instanceof NDArray ? xData.data : new Float64Array(xData);
-  const ys = yData instanceof NDArray ? yData.data : new Float64Array(yData);
+  const xs = toFloat64(xData);
+  const ys = toFloat64(yData);
   const n = xs.length;
 
   const loss = (params: NDArray) => {
