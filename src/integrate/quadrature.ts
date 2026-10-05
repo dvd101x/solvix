@@ -8,6 +8,7 @@
  */
 import { broadcastMap, type BroadcastArg } from '../ops/broadcast-map.js';
 import { NDArray, toFloat64 } from '../core/ndarray.js';
+import { cumsum } from '../stats/reductions.js';
 
 /**
  * Regla del trapecio sobre muestras discretas y(x)
@@ -127,14 +128,15 @@ export function cumulativeIntegrate(y: NDArray, x?: NDArray, dx = 1.0): NDArray 
   const xData = x ? toFloat64(x) : null;
   const out = new Float64Array(n);
 
-  let accum = 0;
-  out[0] = 0;
+  if (n === 0) return new NDArray(out, { shape: [0] });
 
+  const areas = new Float64Array(n - 1);
   for (let i = 1; i < n; i++) {
     const h = xData ? xData[i] - xData[i - 1] : dx;
-    accum += 0.5 * (yData[i - 1] + yData[i]) * h;
-    out[i] = accum;
+    areas[i - 1] = 0.5 * (yData[i - 1] + yData[i]) * h;
   }
 
+  const accumulated = cumsum(new NDArray(areas, { shape: [areas.length] }));
+  for (let i = 1; i < n; i++) out[i] = accumulated.get(i - 1);
   return new NDArray(out, { shape: [n] });
 }

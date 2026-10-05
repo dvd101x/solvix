@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NDArray } from '../src/core/ndarray.js';
+import { meter } from '../src/units/units.js';
 import {
   linspace,
   arange,
@@ -17,6 +18,10 @@ import {
 } from '../src/manipulation/manipulation.js';
 import {
   sum,
+  cumsum,
+  cumprod,
+  cummin,
+  cummax,
   mean,
   min,
   max,
@@ -142,6 +147,29 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     // Media por axis=0: [2.5, 3.5, 4.5]
     const m0 = mean(M, { axis: 0 }) as NDArray;
     expect(Array.from(m0.data)).toEqual([2.5, 3.5, 4.5]);
+  });
+
+  it('performs cumulative scans globally and along positive or negative axes', () => {
+    const values = NDArray.fromArray([[1, 2, 3], [4, 5, 6]]);
+
+    expect(Array.from(cumsum(values).data)).toEqual([1, 3, 6, 10, 15, 21]);
+    expect(Array.from(cumsum(values, { axis: 0 }).data)).toEqual([1, 2, 3, 5, 7, 9]);
+    expect(Array.from(cumsum(values, { axis: -1 }).data)).toEqual([1, 3, 6, 4, 9, 15]);
+    expect(Array.from(cumprod(values, { axis: 0 }).data)).toEqual([1, 2, 3, 4, 10, 18]);
+
+    const extrema = NDArray.fromArray([[3, 1, 4], [2, 5, 0]]);
+    expect(Array.from(cummin(extrema, { axis: 1 }).data)).toEqual([3, 1, 1, 2, 2, 0]);
+    expect(Array.from(cummax(extrema, { axis: 0 }).data)).toEqual([3, 1, 4, 3, 5, 4]);
+  });
+
+  it('preserves units for additive/extrema scans and rejects dimension-changing products', () => {
+    const distances = NDArray.fromArray([1, 2, 3]).withUnit(meter);
+    expect(Array.from(cumsum(distances).data)).toEqual([1, 3, 6]);
+    expect(cummax(distances).unit?.m).toBe(1);
+    expect(() => cumprod(distances)).toThrow(/arrays with units/);
+    expect(() => cumsum(distances, { axis: 1 })).toThrow(RangeError);
+    const complex = new NDArray(new Float64Array([1]), { shape: [1], imag: new Float64Array([1]) });
+    expect(() => cumsum(complex)).toThrow(/complex arrays/);
   });
 
   it('computes sum-products over strided arrays and validates their shapes', () => {

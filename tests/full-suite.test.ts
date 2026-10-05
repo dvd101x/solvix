@@ -107,6 +107,14 @@ describe('ix / integrate / numerical quadrature', () => {
     expect(v.get(0)).toBe(0);
     expect(v.get(1)).toBe(2);
     expect(v.get(2)).toBe(4);
+
+    const irregular = cumulativeIntegrate(
+      NDArray.fromArray([1, 3, 5]),
+      NDArray.fromArray([0, 1, 3])
+    );
+    expect(Array.from(irregular.data)).toEqual([0, 2, 10]);
+    expect(cumulativeIntegrate(NDArray.zeros([0])).size).toBe(0);
+    expect(Array.from(cumulativeIntegrate(NDArray.fromArray([7])).data)).toEqual([0]);
   });
 });
 

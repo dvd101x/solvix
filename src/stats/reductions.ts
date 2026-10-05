@@ -12,6 +12,7 @@ import { NDArray } from '../core/ndarray.js';
 import { Quantity } from '../units/units.js';
 import { broadcastMap } from '../ops/broadcast-map.js';
 import { reduceTensorAxis } from './reduction-utils.js';
+import { scanTensorAxis } from './scan-utils.js';
 
 export interface ReductionOptions {
   axis?: number;
@@ -42,6 +43,10 @@ export interface SumProductOptions {
 export interface DescribeOptions {
   axis?: number;
   keepdims?: boolean;
+}
+
+export interface ScanOptions {
+  axis?: number;
 }
 
 function sumValues(values: number[]): number {
@@ -135,6 +140,22 @@ function reduceAxis(
 
 export function sum(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, sumValues, true);
+}
+
+export function cumsum(arr: NDArray, opts: ScanOptions = {}): NDArray {
+  return scanTensorAxis(arr, opts.axis, (accumulated, value) => accumulated + value, true);
+}
+
+export function cumprod(arr: NDArray, opts: ScanOptions = {}): NDArray {
+  return scanTensorAxis(arr, opts.axis, (accumulated, value) => accumulated * value, false);
+}
+
+export function cummin(arr: NDArray, opts: ScanOptions = {}): NDArray {
+  return scanTensorAxis(arr, opts.axis, Math.min, true);
+}
+
+export function cummax(arr: NDArray, opts: ScanOptions = {}): NDArray {
+  return scanTensorAxis(arr, opts.axis, Math.max, true);
 }
 
 export function sumProduct(...arrays: [NDArray, ...NDArray[]]): number;

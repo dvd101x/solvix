@@ -385,7 +385,10 @@ const limited = clip(A, 2, 5); // [2, 2, 3, 4, 5, 5]; bounds may also be arrays 
 Global and axis-based (`axis`) reductions support degrees-of-freedom correction (`ddof`):
 
 ```typescript
-import { NDArray, sum, mean, std, variance, median, quantile, percentile, sumProduct, describe } from 'solvix';
+import {
+  NDArray, sum, mean, std, variance, median, quantile, percentile, sumProduct, describe,
+  cumsum, cumprod, cummin, cummax
+} from 'solvix';
 
 // 2x3 matrix: [[1, 2, 3], [4, 5, 6]]
 const M = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
@@ -394,6 +397,10 @@ const M = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
 const colSum = sum(M, { axis: 0 }); // [5, 7, 9] (sum across rows)
 const rowMean = mean(M, { axis: 1 }); // [2, 5] (mean per row)
 const devStd = std(M, { axis: 0, ddof: 1 }); // Sample standard deviation
+const partialSums = cumsum(M, { axis: 1 }); // [[1, 3, 6], [4, 9, 15]]
+const partialProducts = cumprod(M, { axis: 1 }); // [[1, 2, 6], [4, 20, 120]]
+const runningMin = cummin(M, { axis: 0 }); // [[1, 2, 3], [1, 2, 3]]
+const runningMax = cummax(M, { axis: 0 }); // [[1, 2, 3], [4, 5, 6]]
 const dot = sumProduct(
   new NDArray(new Float64Array([1, 2, 3]), { shape: [3] }),
   new NDArray(new Float64Array([4, 5, 6]), { shape: [3] })
@@ -408,6 +415,9 @@ const weightedColumns = sumProduct(
 const med = median(M); // 3.5
 const q75 = quantile(M, 0.75); // 75th percentile
 const p25 = percentile(M, 25); // 25th percentile
+
+// With no axis, cumulative scans flatten the array in iteration order.
+const allPartialSums = cumsum(M); // [1, 3, 6, 10, 15, 21]
 
 // 3. Full descriptive summary
 const stats = describe(M);
