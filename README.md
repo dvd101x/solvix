@@ -19,7 +19,7 @@ const values = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
 const result = add(values, 2);
 ```
 
-To work from a local checkout, run `npm install`, then `npm run build` or `npm run example`. The public package entry point is `solvix`; its implementation currently lives in `src/ix` and has no runtime dependencies.
+To work from a local checkout, run `npm install`, then `npm run build` or `npm run example`. The public package entry point is `solvix`; its source lives in `src/` and it has no runtime dependencies.
 
 ## ⚡ Design Principles
 
@@ -33,44 +33,24 @@ To work from a local checkout, run `npm install`, then `npm run build` or `npm r
 
 ---
 
-## 📁 Arquitectura del Repositorio
+## 📁 Repository Layout
 
 ```
 solvix/
-├── src/
-│   ├── ix/
-│   │   ├── core/
-│   │   │   ├── strides.ts            # Unrolled sub2ind functions (1D-6D) and C/Fortran layouts
-│   │   │   ├── ndarray.ts            # Core NDArray with inlined get/set and lazy slicing
-│   │   │   ├── nested-array.ts       # Native NestedArray without forced typed-buffer conversion
-│   │   │   ├── dispatcher.ts         # Multiple-dispatch engine with caching
-│   │   │   └── index.ts              # Centralized core exports
-│   │   ├── ops/
-│   │   │   └── math-ops.ts           # Element-wise operations with multidimensional broadcasting
-│   │   ├── linalg/
-│   │   │   └── factorizations.ts     # Pivoted LU, Householder QR, Jacobi SVD, solve, inv, det
-│   │   ├── parser/
-│   │   │   └── parser.ts             # Mathematical expression parser (AST, Shunting-Yard, compile)
-│   │   ├── indexing/
-│   │   │   └── advanced-indexing.ts  # Boolean masking (A[mask]), fancy take/put, and ellipsis (...)
-│   │   ├── parallel/
-│   │   │   ├── shared-memory.ts      # SharedArrayBuffer, chunk partitioning, and array transfer
-│   │   │   └── expression-worker.ts  # Serialize and evaluate mathematical scopes in workers
-│   │   ├── dag/
-│   │   │   └── dag.ts                # Expression DAG (Kahn's algorithm)
-│   │   └── index.ts                  # Public Solvix entry point
-│   └── index.ts
-├── tests/
-│   └── ix/
-│       ├── ix.test.ts                # Core and basic operation tests
-│       ├── nested.test.ts            # NestedArray tests
-│       ├── advanced.test.ts          # Indexing, worker, and DAG tests
-│       └── linalg-parser.test.ts     # LU/QR/SVD/solve and parser AST tests
-├── benchmarks/
-│   └── bench-ix.ts                   # Numerical microbenchmarks
-├── package.json
-├── tsconfig.json
-└── README.md
+├── src/                  # Library source; src/index.ts is the public entry point
+│   ├── core/             # NDArray (strided, real/complex/units), NestedArray, strides, dispatcher
+│   ├── ops/              # Broadcasting arithmetic, Julia-style operators (*, \, ^, ')
+│   ├── linalg/           # LU/QR/SVD, solve/inv/det, matmul, norms, cholesky, eigen, pinv, lstsq
+│   ├── parser/           # Julia-like expression parser (AST, ranges, literals, indexing)
+│   ├── indexing/         # Masks, fancy indexing, ellipsis, and 1-based Julia indexing
+│   ├── manipulation/     # reshape, transpose, stack, ...
+│   ├── stats/ signal/ integrate/ interpolate/ optimize/ ode/   # Numerical modules
+│   ├── types/ units/ constants/                                 # Complex, Fraction, Quantity
+│   ├── dataframe/ plot/ latex/ agent/ ai/                       # Data and tooling helpers
+│   └── parallel/ dag/ memory/                                   # Workers, expression graphs, in-place ops
+├── tests/                # Vitest suites (`npm test`)
+├── examples/             # `npm run example`
+└── benchmarks/           # `npm run bench`
 ```
 
 ---
@@ -233,6 +213,8 @@ const { U: uVec, S: sVals, V: vVec } = svd(A);
 ---
 
 ### 5. Native Mathematical Parser and AST Compiler
+
+The syntax follows Julia: `A*b` is the matrix product, `A.*b` is element-wise, `A\\b` solves a system, `A'` is the conjugate transpose, `f.(x)` broadcasts, and `im` is the imaginary unit. Array literals (`[1 2; 3 4]`, `[1, 2, 3]`), ranges (`1:2:9`) and **1-based** indexing (`A[2, :]`, `v[end]`) are supported. `f.(x)` and `map(f, x)` call `f` with the value only; use `mapIndexed(f, x)` for `(value, index, array)`.
 
 Tokenizer and parser based on **Shunting-Yard (Dijkstra)** with a native abstract syntax tree (**AST**) and no external dependencies:
 

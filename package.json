@@ -3,23 +3,23 @@
   "version": "0.1.0",
   "description": "Scientific computing for TypeScript with multidimensional arrays and numerical operations",
   "type": "module",
-  "main": "./dist/src/ix/index.js",
-  "types": "./dist/src/ix/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/ix/index.d.ts",
-      "import": "./dist/src/ix/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     }
   },
   "files": [
-    "dist/src/ix"
+    "dist/src"
   ],
   "scripts": {
     "dev": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
-    "test": "vitest run tests/ix",
+    "test": "vitest run tests",
     "example": "tsx examples/quickstart.ts",
-    "bench": "tsx benchmarks/bench-ix.ts",
+    "bench": "tsx benchmarks/bench.ts",
     "prepack": "npm run build"
   },
   "devDependencies": {
