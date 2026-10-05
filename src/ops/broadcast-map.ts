@@ -162,3 +162,32 @@ function forEachBroadcast(
     }
   }
 }
+
+/** Applies a UNARY function: `fn(value)`. Same rules as `broadcastMap` with a single array. */
+export function mapElements(x: ArrayLike_, fn: (value: Element) => Element | boolean): any {
+  return broadcastMap((v) => fn(v), x);
+}
+
+/**
+ * Like `Array.prototype.map`: `fn(value, index, array)`, where `index` is the 0-based multi-index
+ * (one entry per axis) and `array` is the original input.
+ */
+export function mapIndexed(
+  x: ArrayLike_,
+  fn: (value: Element, index: number[], array: ArrayLike_) => Element | boolean
+): any {
+  const plan = planBroadcast([x])!;
+  const re = new Float64Array(plan.size);
+  let im: Float64Array | undefined;
+  forEachBroadcast(plan, [x], (n, [v], coords) => {
+    const out = fn(v, Array.from(coords), x);
+    if (out instanceof Complex) {
+      im ??= new Float64Array(plan.size);
+      re[n] = out.re;
+      im[n] = out.im;
+    } else {
+      re[n] = toReal(out);
+    }
+  });
+  return wrapLike(new NDArray(re, { shape: Array.from(plan.shape), imag: im }), x);
+}

@@ -7,6 +7,7 @@
  * - Estadísticas y transformaciones en bloque (describe, corr, cov, toJSON)
  */
 import { NDArray } from '../core/ndarray.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
 import { cov, corr } from '../stats/series-ops.js';
 import { describe, StatsSummary } from '../stats/reductions.js';
 
@@ -86,6 +87,36 @@ export class DataFrame {
       columns: colNames,
       index: [...this.index],
     });
+  }
+
+  /** Applies a unary real function to every cell. */
+  public map(fn: (value: number) => number | boolean): DataFrame {
+    return new DataFrame(broadcastMap((v) => fn(v), this.values) as NDArray, {
+      columns: [...this.columns],
+      index: [...this.index],
+    });
+  }
+
+  /**
+   * Adds (or replaces) column `name` computed as `fn(colA, colB, ...)` for every row, where the
+   * arguments come from the columns named in `from`. Results must be real.
+   */
+  public withColumn(name: string, fn: (...values: number[]) => number | boolean, ...from: string[]): DataFrame {
+    if (from.length === 0) throw new Error('withColumn needs at least one source column');
+    const result = broadcastMap(fn, ...from.map((c) => this.col(c))) as NDArray;
+    if (result.isComplex) throw new TypeError('DataFrame columns must be real');
+    const rows = this.shape[0];
+    const values = result.contiguous().data;
+    const replaceAt = this.colIndexMap.get(name);
+    const columns = replaceAt === undefined ? [...this.columns, name] : [...this.columns];
+    const cols = columns.length;
+    const out = new Float64Array(rows * cols);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        out[r * cols + c] = c === (replaceAt ?? cols - 1) ? values[r] : this.values.get(r, c);
+      }
+    }
+    return new DataFrame(new NDArray(out, { shape: [rows, cols] }), { columns, index: [...this.index] });
   }
 
   /**

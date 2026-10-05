@@ -4,6 +4,7 @@
  * - fzero: Búsqueda de raíz unidimensional usando el método de Brent (híbrido Bisección + Secante + Interpolación Inversa)
  * - fsolve: Sistema multidimensional no lineal F(x) = 0 usando Newton-Raphson con Jacobiano numérico y amortiguamiento (Damping)
  */
+import { broadcastMap, type BroadcastArg } from '../ops/broadcast-map.js';
 import { NDArray } from '../core/ndarray.js';
 import { solve } from '../linalg/factorizations.js';
 
@@ -213,4 +214,9 @@ export function fsolve(
 
   const finalFx = F(x);
   return { x, fval: finalFx, converged: false, iterations: maxIter };
+}
+
+/** Finds one root per bracket `[a, b]`; `a` and `b` may be arrays or scalars and are broadcast. */
+export function fzeroMap(f: (x: number) => number, a: BroadcastArg, b: BroadcastArg, opts: RootOptions = {}): any {
+  return broadcastMap((lo, hi) => fzero(f, [lo as number, hi as number], opts).root, a, b);
 }

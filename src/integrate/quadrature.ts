@@ -6,6 +6,7 @@
  * - quad: Cuadratura adaptativa de Gauss-Kronrod / Simpson adaptativa para funciones continuas f(x)
  * - cumulativeIntegrate: Integral acumulativa 1D (ej. aceleración -> velocidad -> posición)
  */
+import { broadcastMap, type BroadcastArg } from '../ops/broadcast-map.js';
 import { NDArray, toFloat64 } from '../core/ndarray.js';
 
 /**
@@ -65,7 +66,14 @@ export function simpson(y: NDArray | Float64Array | number[], x?: NDArray | Floa
 /**
  * Cuadratura adaptativa de Simpson para funciones continuas en [a, b]
  */
-export function quad(f: (x: number) => number, a: number, b: number, tol = 1e-8, maxDepth = 25): number {
+export function quad(f: (x: number) => number, a: number, b: number, tol?: number, maxDepth?: number): number;
+export function quad(f: (x: number) => number, a: BroadcastArg, b: BroadcastArg, tol?: number, maxDepth?: number): NDArray | any;
+export function quad(f: (x: number) => number, a: BroadcastArg, b: BroadcastArg, tol = 1e-8, maxDepth = 25): any {
+  // Array limits are broadcast: one integral per (a, b) pair.
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    return broadcastMap((lo, hi) => quad(f, lo as number, hi as number, tol, maxDepth), a, b);
+  }
+
   function simpsonRule(fa: number, fb: number, fc: number, h: number): number {
     return (h / 6) * (fa + 4 * fc + fb);
   }

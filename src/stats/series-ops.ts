@@ -10,6 +10,7 @@
  * - nanmean, nansum, nanstd, isnan, fillna, dropna
  */
 import { NDArray } from '../core/ndarray.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
 
 export interface RollingWindow {
   mean(): NDArray;
@@ -136,38 +137,14 @@ export function ewm(arr: NDArray, opts: { alpha?: number; span?: number }): NDAr
  * Diferencia discreta de primer o enésimo orden: y[i] - y[i - periods]
  */
 export function diff(arr: NDArray, periods: number = 1): NDArray {
-  const n = arr.size;
-  const out = new Float64Array(n);
-  const data = arr.contiguous().data;
-
-  for (let i = 0; i < n; i++) {
-    if (i < periods) {
-      out[i] = NaN;
-    } else {
-      out[i] = data[i] - data[i - periods];
-    }
-  }
-
-  return new NDArray(out, { shape: [n] });
+  return broadcastMap((cur, prev) => cur - prev, arr, shift(arr, periods));
 }
 
 /**
  * Cambio porcentual: (y[i] - y[i - periods]) / y[i - periods]
  */
 export function pctChange(arr: NDArray, periods: number = 1): NDArray {
-  const n = arr.size;
-  const out = new Float64Array(n);
-  const data = arr.contiguous().data;
-
-  for (let i = 0; i < n; i++) {
-    if (i < periods || data[i - periods] === 0) {
-      out[i] = NaN;
-    } else {
-      out[i] = (data[i] - data[i - periods]) / data[i - periods];
-    }
-  }
-
-  return new NDArray(out, { shape: [n] });
+  return broadcastMap((cur, prev) => (prev === 0 ? NaN : (cur - prev) / prev), arr, shift(arr, periods));
 }
 
 /**

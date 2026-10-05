@@ -14,7 +14,7 @@ import { Complex } from '../types/complex.js';
 import { eye } from '../generators/ranges.js';
 import {
   abs, conj, real, imag, angle, sub, mul, div, pow, neg,
-  addElementwise, isArrayLike, toNDArray, mapReal, mapComplex, mapElements, mapIndexed,
+  addElementwise, isArrayLike, toNDArray, mapReal, mapComplex,
 } from '../ops/elementwise.js';
 import { mtimes, mpower, mrdiv, mldiv, ctranspose } from '../ops/operators.js';
 import {
@@ -22,7 +22,7 @@ import {
   rank, cond, cholesky, eigen, adjoint, transposeCopy,
 } from '../linalg/matrix.js';
 import { det, inv, solve } from '../linalg/factorizations.js';
-import { broadcastMap } from '../ops/broadcast-map.js';
+import { broadcastMap, mapElements, mapIndexed } from '../ops/broadcast-map.js';
 import { colonRange, buildArray, indexOneBased, type AxisIndex } from '../indexing/one-based.js';
 
 export interface Token {

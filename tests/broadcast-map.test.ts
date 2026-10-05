@@ -124,3 +124,43 @@ describe('collection functions built on broadcasting', () => {
     expect(u.unit?.m).toBe(1);
   });
 });
+
+import { quad, fzeroMap, DataFrame, diff, pctChange } from '../src/index.js';
+
+describe('vectorized consumers of broadcastMap', () => {
+  it('quad broadcasts array limits and keeps the shape', () => {
+    const r = quad((x) => x * x, [[0, 1], [2, 3]] as any, 3) as any;
+    expect(r[0][0]).toBeCloseTo(9);
+    expect(r[1][1]).toBeCloseTo(0);
+    expect(quad((x) => x, 0, 2)).toBeCloseTo(2);
+    const nd = quad((x) => x, NDArray.fromArray([0, 1]), 2) as NDArray;
+    expect(nd.data[0]).toBeCloseTo(2);
+    expect(nd.data[1]).toBeCloseTo(1.5);
+  });
+  it('fzeroMap finds one root per bracket', () => {
+    const r = fzeroMap((x) => x * x - 2, 0, NDArray.fromArray([2, 3])) as NDArray;
+    expect(r.data[0]).toBeCloseTo(Math.SQRT2);
+    expect(r.data[1]).toBeCloseTo(Math.SQRT2);
+  });
+  it('DataFrame.map and withColumn', () => {
+    const df = new DataFrame([[1, 2], [3, 4]], { columns: ['a', 'b'] });
+    expect(Array.from(df.map((v) => v * 10).col('b').data)).toEqual([20, 40]);
+    const added = df.withColumn('s', (a, b) => a + b, 'a', 'b');
+    expect(added.columns).toEqual(['a', 'b', 's']);
+    expect(Array.from(added.col('s').data)).toEqual([3, 7]);
+    const replaced = df.withColumn('a', (a) => -a, 'a');
+    expect(replaced.columns).toEqual(['a', 'b']);
+    expect(Array.from(replaced.col('a').data)).toEqual([-1, -3]);
+    expect(Array.from(replaced.col('b').data)).toEqual([2, 4]);
+    expect(() => df.withColumn('z', () => 1)).toThrow();
+    expect(() => df.withColumn('z', (a) => a, 'nope')).toThrow(ReferenceError);
+  });
+  it('diff and pctChange still behave, now through shift', () => {
+    const x = NDArray.fromArray([1, 2, 4, 0, 5]);
+    expect(Array.from(diff(x).data)).toEqual([NaN, 1, 2, -4, 5]);
+    const p = pctChange(x).data;
+    expect(p[1]).toBe(1);
+    expect(p[4]).toBeNaN();
+    expect(Array.from(diff(x, 2).data).slice(0, 2)).toEqual([NaN, NaN]);
+  });
+});
