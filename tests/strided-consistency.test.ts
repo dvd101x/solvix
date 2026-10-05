@@ -17,6 +17,10 @@ describe('fixture sanity', () => {
 
 const unary: [string, (a: any) => any][] = [
   ['sum', (a) => S.sum(a)],
+  ['cumsum', (a) => S.cumsum(a)],
+  ['cumprod', (a) => S.cumprod(a)],
+  ['cummin', (a) => S.cummin(a)],
+  ['cummax', (a) => S.cummax(a)],
   ['mean', (a) => S.mean(a)],
   ['min', (a) => S.min(a)],
   ['max', (a) => S.max(a)],

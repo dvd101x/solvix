@@ -156,10 +156,49 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(Array.from(cumsum(values, { axis: 0 }).data)).toEqual([1, 2, 3, 5, 7, 9]);
     expect(Array.from(cumsum(values, { axis: -1 }).data)).toEqual([1, 3, 6, 4, 9, 15]);
     expect(Array.from(cumprod(values, { axis: 0 }).data)).toEqual([1, 2, 3, 4, 10, 18]);
+    expect(Array.from(cumprod(values).data)).toEqual([1, 2, 6, 24, 120, 720]);
+    expect(Array.from(cumprod(values, { axis: 1 }).data)).toEqual([1, 2, 6, 4, 20, 120]);
 
     const extrema = NDArray.fromArray([[3, 1, 4], [2, 5, 0]]);
+    expect(Array.from(cummin(extrema).data)).toEqual([3, 1, 1, 1, 1, 0]);
     expect(Array.from(cummin(extrema, { axis: 1 }).data)).toEqual([3, 1, 1, 2, 2, 0]);
     expect(Array.from(cummax(extrema, { axis: 0 }).data)).toEqual([3, 1, 4, 3, 5, 4]);
+    expect(Array.from(cummax(extrema, { axis: -1 }).data)).toEqual([3, 3, 4, 2, 5, 5]);
+  });
+
+  it('resets cumulative state for each slice along middle axes and handles empty inputs', () => {
+    const values = NDArray.fromArray([
+      [[1, 2], [3, 4]],
+      [[5, 6], [7, 8]],
+    ]);
+    expect(Array.from(cumsum(values, { axis: 1 }).data)).toEqual([
+      1, 2, 4, 6,
+      5, 6, 12, 14,
+    ]);
+    expect(Array.from(cumprod(values, { axis: 1 }).data)).toEqual([
+      1, 2, 3, 8,
+      5, 6, 35, 48,
+    ]);
+
+    const empty = NDArray.zeros([0, 3]);
+    expect(Array.from(cumsum(empty).shape)).toEqual([0]);
+    expect(Array.from(cumprod(empty, { axis: 1 }).shape)).toEqual([0, 3]);
+    expect(Array.from(cummin(NDArray.fromArray([5])).data)).toEqual([5]);
+    expect(Array.from(cummax(NDArray.fromArray([5])).data)).toEqual([5]);
+  });
+
+  it('preserves NaN propagation and scans strided transposed views correctly', () => {
+    const withNaN = NDArray.fromArray([1, NaN, 3]);
+    expect(cumsum(withNaN).get(0)).toBe(1);
+    expect(Number.isNaN(cumsum(withNaN).get(1))).toBe(true);
+    expect(Number.isNaN(cumsum(withNaN).get(2))).toBe(true);
+    expect(Number.isNaN(cummin(withNaN).get(2))).toBe(true);
+    expect(Number.isNaN(cummax(withNaN).get(2))).toBe(true);
+
+    const source = NDArray.fromArray([[1, 2, 3], [4, 5, 6]]);
+    const transposed = transpose(source);
+    expect(Array.from(cumsum(transposed, { axis: 0 }).data)).toEqual([1, 4, 3, 9, 6, 15]);
+    expect(Array.from(cumprod(transposed, { axis: 1 }).data)).toEqual([1, 4, 2, 10, 3, 18]);
   });
 
   it('preserves units for additive/extrema scans and rejects dimension-changing products', () => {

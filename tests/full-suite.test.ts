@@ -115,6 +115,12 @@ describe('ix / integrate / numerical quadrature', () => {
     expect(Array.from(irregular.data)).toEqual([0, 2, 10]);
     expect(cumulativeIntegrate(NDArray.zeros([0])).size).toBe(0);
     expect(Array.from(cumulativeIntegrate(NDArray.fromArray([7])).data)).toEqual([0]);
+    expect(Array.from(cumulativeIntegrate(a, undefined, 0.5).data)).toEqual([0, 1, 2]);
+    expect(Array.from(cumulativeIntegrate(a, NDArray.fromArray([2, 1, 0])).data)).toEqual([0, -2, -4]);
+
+    const stridedY = NDArray.fromArray([99, 1, 99, 3, 99, 5]).slice([1, 6, 2]);
+    const stridedX = NDArray.fromArray([99, 0, 99, 1, 99, 3]).slice([1, 6, 2]);
+    expect(Array.from(cumulativeIntegrate(stridedY, stridedX).data)).toEqual([0, 2, 10]);
   });
 });
 
