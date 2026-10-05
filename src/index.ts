@@ -5,6 +5,7 @@
 export * from './core/index.js';
 export * from './ops/math-ops.js';
 export { sub, mul, div, pow, neg, conj, real, imag, abs, angle, mapReal, mapComplex, mapElements, mapIndexed, isArrayLike, toNDArray } from './ops/elementwise.js';
+export { broadcastMap, broadcastInto, type Element, type BroadcastArg } from './ops/broadcast-map.js';
 export { mtimes, mpower, mldiv, mrdiv, ctranspose } from './ops/operators.js';
 export * from './indexing/advanced-indexing.js';
 export { colonRange, buildArray, indexOneBased, type AxisIndex } from './indexing/one-based.js';

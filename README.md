@@ -97,7 +97,7 @@ import { NDArray, where, all, any, countNonzero } from 'solvix';
 
 const mask = NDArray.fromArray([1, 0, 1]);
 const values = NDArray.fromArray([10, 20, 30]);
-const selected = where(mask, values, 0); // [10, 0, 30]
+const selected = where(mask, values, 0); // [10, 0, 30]; all arguments broadcast
 
 all(mask);          // false
 any(mask);          // true
@@ -371,7 +371,7 @@ const expanded = expandDims(A, 1); // shape: [2, 1, 3]
 const squeezed = squeeze(expanded); // shape: [2, 3]
 
 // 4. Clip values to a range
-const limited = clip(A, 2, 5); // [2, 2, 3, 4, 5, 5]
+const limited = clip(A, 2, 5); // [2, 2, 3, 4, 5, 5]; bounds may also be arrays (broadcast)
 ```
 
 ---
@@ -734,3 +734,16 @@ npm run bench
 ```
 
 `npm run example` runs a short local example of the public API. `npm test` runs tests for that API. `npm run bench` runs the numerical benchmarks, and `npm run dev` starts the TypeScript compiler in watch mode.
+
+### Mapping over several arrays
+
+```typescript
+import { broadcastMap, broadcastInto, NDArray } from 'solvix';
+
+const y = NDArray.fromArray([[1], [2]]);
+const x = NDArray.fromArray([[1, 2, 3]]);
+broadcastMap((a, b) => Math.hypot(a, b), y, x); // 2x3 result; scalars and nested arrays also accepted
+broadcastInto(out, (a, b) => a + b, y, x);      // same, writing into `out` (any strides)
+```
+
+`fn` receives only element values. In expressions: `hypot.(y, x)`, `map(f, a, b)`.

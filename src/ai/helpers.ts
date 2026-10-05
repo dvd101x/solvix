@@ -56,7 +56,7 @@ const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: 
     example: 'const f = solvix.compile("x^2"); f({ x: 4 }); // 16',
   },
   where: {
-    desc: 'Selects values element-wise where the condition is nonzero; array arguments must have matching shapes.',
+    desc: 'Selects values element-wise where the condition is nonzero; array arguments broadcast against the condition.',
     signature: 'where(condition: NDArray, whenTrue: NDArray | number, whenFalse: NDArray | number): NDArray',
     example: 'const mask = solvix.NDArray.fromArray([1, 0, 1]); const values = solvix.NDArray.fromArray([3, 4, 5]); solvix.where(mask, values, 0);',
   },

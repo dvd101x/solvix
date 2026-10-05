@@ -6,6 +6,8 @@
  * - Slicing multidimensional con soporte de elipsis (...)
  */
 import { NDArray, TypedArray } from '../core/ndarray.js';
+import { Complex } from '../types/complex.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
 
 export const ELLIPSIS = Symbol('ELLIPSIS');
 
@@ -41,29 +43,17 @@ export function booleanMask(arr: NDArray, mask: NDArray | Uint8Array | boolean[]
   return new NDArray(outData, { shape: [matches.length], order: arr.order });
 }
 
-export function where(condition: NDArray, whenTrue: NDArray | number, whenFalse: NDArray | number): NDArray {
-  for (const value of [whenTrue, whenFalse]) {
-    if (
-      value instanceof NDArray &&
-      (value.ndim !== condition.ndim || value.shape.some((size, axis) => size !== condition.shape[axis]))
-    ) {
-      throw new Error('where array arguments must have the same shape as condition');
-    }
-  }
-
-  const conditionValues = condition[Symbol.iterator]();
-  const trueValues = whenTrue instanceof NDArray ? whenTrue[Symbol.iterator]() : undefined;
-  const falseValues = whenFalse instanceof NDArray ? whenFalse[Symbol.iterator]() : undefined;
-  const outData = new Float64Array(condition.size);
-
-  for (let i = 0; i < condition.size; i++) {
-    const selected = conditionValues.next().value !== 0;
-    const trueValue = trueValues ? trueValues.next().value! : whenTrue as number;
-    const falseValue = falseValues ? falseValues.next().value! : whenFalse as number;
-    outData[i] = selected ? trueValue : falseValue;
-  }
-
-  return new NDArray(outData, { shape: Array.from(condition.shape), order: condition.order });
+export function where(
+  condition: NDArray,
+  whenTrue: NDArray | number | Complex,
+  whenFalse: NDArray | number | Complex
+): NDArray {
+  return broadcastMap(
+    (c, t, f) => ((c instanceof Complex ? c.re !== 0 || c.im !== 0 : c !== 0) ? t : f),
+    condition,
+    whenTrue,
+    whenFalse
+  );
 }
 
 /**

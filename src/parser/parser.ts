@@ -22,6 +22,7 @@ import {
   rank, cond, cholesky, eigen, adjoint, transposeCopy,
 } from '../linalg/matrix.js';
 import { det, inv, solve } from '../linalg/factorizations.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
 import { colonRange, buildArray, indexOneBased, type AxisIndex } from '../indexing/one-based.js';
 
 export interface Token {
@@ -432,7 +433,8 @@ const ARRAY_FUNCTIONS: Record<string, Function> = {
   },
   length: (x: any) => (isArrayLike(x) ? toNDArray(x).size : 1),
   // Julia argument order: map(f, x) calls f(value); mapIndexed(f, x) calls f(value, index, array)
-  map: (f: Function, x: any) => mapElements(x, (v) => f(v)),
+  map: (f: Function, ...xs: any[]) =>
+    xs.length === 1 ? mapElements(xs[0], (v) => f(v)) : broadcastMap((...v: any[]) => f(...v), ...xs),
   mapIndexed: (f: Function, x: any) => mapIndexed(x, (v, i, a) => f(v, i, a)),
   eye: (n: number, m?: number) => eye(n, m),
   zeros: (...dims: number[]) => NDArray.zeros(dims),
@@ -454,7 +456,10 @@ function callScalarFunction(name: string, fn: Function, args: any[], broadcast?:
     throw new TypeError(`Use ${name}.(x) to apply ${name} element-wise to an array`);
   }
   if (args.length !== 1) {
-    throw new TypeError(`Broadcast of ${name} supports a single array argument`);
+    return broadcastMap((...v: any[]) => {
+      if (v.some((e) => e instanceof Complex)) throw new TypeError(`${name} is not defined for complex values`);
+      return fn(...v);
+    }, ...args);
   }
   const arr = toNDArray(args[0]);
   if (arr.isComplex) {
@@ -563,9 +568,10 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
       const args = ast.args.map((arg) => evaluateAST(arg, scope));
       const userFn = scope[ast.name];
       if (typeof userFn === 'function') {
-        return ast.broadcast && args.length === 1 && isArrayLike(args[0])
-          ? mapReal(args[0], (v) => userFn(v))
-          : userFn(...args);
+        if (!ast.broadcast) return userFn(...args);
+        return args.length === 1 && isArrayLike(args[0])
+          ? mapElements(args[0], (v) => userFn(v))
+          : broadcastMap((...v: any[]) => userFn(...v), ...args);
       }
       if (ARRAY_FUNCTIONS[ast.name]) return ARRAY_FUNCTIONS[ast.name](...args);
       const scalarFn = REAL_MATH[ast.name];

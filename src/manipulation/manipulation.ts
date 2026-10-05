@@ -7,6 +7,7 @@
  * - squeeze / expandDims
  * - clip
  */
+import { broadcastMap } from '../ops/broadcast-map.js';
 import { NDArray } from '../core/ndarray.js';
 import { computeStridesRowMajor } from '../core/strides.js';
 
@@ -139,12 +140,10 @@ export function squeeze(arr: NDArray, axis?: number): NDArray {
 /**
  * Trunca los valores de un tensor al intervalo [min, max].
  */
-export function clip(arr: NDArray, minVal: number, maxVal: number): NDArray {
+export function clip(arr: NDArray, minVal: NDArray | number, maxVal: NDArray | number): NDArray {
   if (arr.isComplex) throw new TypeError('clip is not defined for complex arrays');
-  const outData = new Float64Array(arr.size);
-  let idx = 0;
-  for (const v of arr) {
-    outData[idx++] = Math.min(maxVal, Math.max(minVal, v));
-  }
-  return new NDArray(outData, { shape: Array.from(arr.shape), order: arr.order, unit: arr.unit });
+  // Bounds are plain numbers in the same (SI) scale as the data; the unit is re-attached afterwards.
+  const plain = new NDArray(arr.data, { shape: arr.shape, strides: arr.strides, offset: arr.offset, order: arr.order });
+  const out: NDArray = broadcastMap((v, lo, hi) => Math.min(hi, Math.max(lo, v)), plain, minVal, maxVal);
+  return arr.unit ? new NDArray(out.data, { shape: out.shape, unit: arr.unit }) : out;
 }

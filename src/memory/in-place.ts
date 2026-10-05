@@ -4,51 +4,24 @@
  * and preallocated memory scope (memory arena / tidy) for zero garbage-collection overhead.
  */
 import { NDArray } from '../core/ndarray.js';
+import { Complex } from '../types/complex.js';
+import { broadcastInto } from '../ops/broadcast-map.js';
+
+const toComplex = (v: number | Complex): Complex => (v instanceof Complex ? v : new Complex(v, 0));
 
 /**
- * Suma in-place: out = a + b sin alocar nuevos arrays.
+ * In-place addition: out = a + b, without allocating. Operands broadcast to the shape of `out`
+ * and may be strided views, complex, or scalars; `out` may be one of the operands.
  */
-export function addInPlace(out: NDArray, a: NDArray, b: NDArray | number): NDArray {
-  const isBNum = typeof b === 'number';
-  const bData = isBNum ? null : (b as NDArray).data;
-  const outData = out.data;
-  const aData = a.data;
-  const len = out.size;
-
-  if (isBNum) {
-    const val = b as number;
-    for (let i = 0; i < len; i++) {
-      outData[i] = aData[i] + val;
-    }
-  } else {
-    for (let i = 0; i < len; i++) {
-      outData[i] = aData[i] + bData![i];
-    }
-  }
-  return out;
+export function addInPlace(out: NDArray, a: NDArray | number, b: NDArray | number): NDArray {
+  return broadcastInto(out, (x, y) => (x instanceof Complex || y instanceof Complex ? toComplex(x).add(toComplex(y)) : x + y), a, b);
 }
 
 /**
- * Multiplicación element-wise in-place: out = a * b
+ * In-place element-wise multiplication: out = a .* b, with the same rules as `addInPlace`.
  */
-export function mulInPlace(out: NDArray, a: NDArray, b: NDArray | number): NDArray {
-  const isBNum = typeof b === 'number';
-  const bData = isBNum ? null : (b as NDArray).data;
-  const outData = out.data;
-  const aData = a.data;
-  const len = out.size;
-
-  if (isBNum) {
-    const val = b as number;
-    for (let i = 0; i < len; i++) {
-      outData[i] = aData[i] * val;
-    }
-  } else {
-    for (let i = 0; i < len; i++) {
-      outData[i] = aData[i] * bData![i];
-    }
-  }
-  return out;
+export function mulInPlace(out: NDArray, a: NDArray | number, b: NDArray | number): NDArray {
+  return broadcastInto(out, (x, y) => (x instanceof Complex || y instanceof Complex ? toComplex(x).mul(toComplex(y)) : x * y), a, b);
 }
 
 // Pool global de Float64Array para reciclaje

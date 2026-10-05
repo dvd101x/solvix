@@ -42,7 +42,7 @@ describe('ix / indexing / advanced-indexing', () => {
 
     expect(Array.from(where(condition, 5, -1).data)).toEqual([-1, 5, 5]);
     expect(Array.from(where(condition, values, fallback).data)).toEqual([1, 20, 30]);
-    expect(() => where(condition, NDArray.zeros([1]), 0)).toThrowError(/same shape as condition/);
+    expect(() => where(condition, NDArray.zeros([2]), 0)).toThrow();
   });
 
   it('performs take / fancy indexing along an axis', () => {
