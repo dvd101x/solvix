@@ -102,7 +102,7 @@ export const SUB2IND_TABLE = [
 ] as const;
 
 /**
- * Calcula los pasos (strides) para formato Row-Major (C-Order / NumPy).
+ * Calcula los pasos (strides) para formato Row-Major.
  */
 export function computeStridesRowMajor(shape: ArrayLike<number>): Int32Array {
   const ndim = shape.length;
@@ -116,7 +116,7 @@ export function computeStridesRowMajor(shape: ArrayLike<number>): Int32Array {
 }
 
 /**
- * Calcula los pasos (strides) para formato Column-Major (Fortran-Order / Julia / MATLAB).
+ * Calcula los pasos (strides) para formato Column-Major.
  */
 export function computeStridesColMajor(shape: ArrayLike<number>): Int32Array {
   const ndim = shape.length;

@@ -27,7 +27,7 @@ export interface RootOptions {
 }
 
 /**
- * Método de Brent para hallar raíces f(x) = 0 en un intervalo [a, b] (estilo scipy.optimize.brentq o MATLAB fzero).
+ * Método de Brent para hallar raíces f(x) = 0 en un intervalo [a, b].
  */
 export function fzero(
   f: (x: number) => number,
@@ -140,7 +140,7 @@ function computeJacobian(F: (x: NDArray) => NDArray, x: NDArray, eps = 1e-7): ND
 }
 
 /**
- * Resuelve sistemas de ecuaciones no lineales F(x) = 0 (estilo MATLAB fsolve o scipy.optimize.root).
+ * Resuelve sistemas de ecuaciones no lineales F(x) = 0.
  * Algoritmo: Newton-Raphson amortiguado con resolución lineal J * delta = -F(x).
  */
 export function fsolve(

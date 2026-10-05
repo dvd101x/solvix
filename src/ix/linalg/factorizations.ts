@@ -4,7 +4,7 @@
  * - Descomposición LU con pivoteo parcial (PA = LU)
  * - Descomposición QR mediante reflexiones de Householder (A = QR)
  * - Descomposición en Valores Singulares (SVD: A = U * S * V^T) mediante algoritmo de Golub-Reinsch
- * - Solución de sistemas lineales Ax = b (operador backslash estilo MATLAB/Julia)
+ * - Solución de sistemas lineales Ax = b
  * - Inversión de matrices (inv) y cálculo del determinante (det)
  */
 import { NDArray } from '../core/ndarray.js';

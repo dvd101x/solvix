@@ -116,7 +116,7 @@ describe('ix / manipulation / tensor views in O(1)', () => {
   });
 });
 
-describe('ix / stats / reductions with axis and pandas statistics', () => {
+describe('ix / stats / reductions with axes and descriptive statistics', () => {
   // Matriz 2x3:
   // [[1, 2, 3],
   //  [4, 5, 6]]
@@ -185,7 +185,7 @@ describe('ix / stats / reductions with axis and pandas statistics', () => {
     expect(std(data, { ddof: 1 })).toBe(1);
   });
 
-  it('computes descriptive statistics summary (pandas describe)', () => {
+  it('computes descriptive statistics summary', () => {
     const v = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), { shape: [10] });
     const desc = statsDescribe(v);
 

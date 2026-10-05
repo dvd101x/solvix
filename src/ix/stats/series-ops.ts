@@ -1,6 +1,6 @@
 /**
  * @file series-ops.ts
- * Operaciones de series temporales y transformaciones estilo Pandas:
+ * Operaciones de series temporales y transformaciones estadísticas:
  * - rolling (ventanas móviles con mean, std, min, max, sum)
  * - ewm (Exponential Weighted Moving Average)
  * - diff (diferenciación discreta / derivadas)

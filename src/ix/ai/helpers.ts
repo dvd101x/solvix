@@ -4,7 +4,7 @@
  * - help(fn): Function documentation and signatures with executable examples
  * - summary(tensor): Compact tensor summary for LLM contexts
  * - fromCSV: Parse CSV tables directly into a DataFrame or NDArray
- * - fromMatrixString: Parse MATLAB-style notation such as "1 2; 3 4"
+ * - fromMatrixString: Parse compact matrix notation such as "1 2; 3 4"
  * - unitsHelp: Unit catalog and interactive quantity guide
  */
 import { NDArray } from '../core/ndarray.js';
@@ -175,7 +175,7 @@ export function fromCSV(csvString: string, opts: { hasHeader?: boolean; delimite
 }
 
 /**
- * Parse compact MATLAB/Octave-style matrix notation, such as "1 2 3; 4 5 6"
+ * Parse compact matrix notation, such as "1 2 3; 4 5 6"
  */
 export function fromMatrixString(matStr: string): NDArray {
   const rowStrings = matStr.trim().replace(/^\[|\]$/g, '').split(';');

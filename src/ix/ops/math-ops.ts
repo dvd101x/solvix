@@ -1,6 +1,6 @@
 /**
  * @file math-ops.ts
- * Operaciones matemáticas con despacho múltiple y reglas de broadcasting NumPy/Julia.
+ * Operaciones matemáticas con despacho múltiple y reglas de broadcasting.
  */
 import { NDArray, NestedArray, createGeneric, GenericFunction } from '../core/index.js';
 import { Complex } from '../types/complex.js';
@@ -9,7 +9,7 @@ import { Fraction } from '../types/fraction.js';
 export const add: GenericFunction = createGeneric('add');
 
 /**
- * Calcula el shape resultante de dos shapes según reglas de NumPy/Julia.
+ * Calcula el shape resultante de dos shapes según reglas de broadcasting.
  */
 export function broadcastShapes(
   shapeA: ArrayLike<number>,

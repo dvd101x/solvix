@@ -1,6 +1,6 @@
 /**
  * @file advanced-indexing.ts
- * Indexación avanzada estilo NumPy y Julia para NDArray:
+ * Indexación avanzada para NDArray:
  * - Fancy indexing por índices enteros (take / put)
  * - Indexación booleana condicional (masking)
  * - Slicing multidimensional con soporte de elipsis (...)

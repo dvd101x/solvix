@@ -26,7 +26,7 @@ export * from './types/fraction.js';
 export * from './signal/transforms.js';
 export * from './integrate/quadrature.js';
 export * from './interpolate/interpolation.js';
-export * from './plot/adapters.js';
+export * from './plot/svg.js';
 export * from './ai/helpers.js';
 export * from './latex/latex.js';
 export * from './agent/agent-tools.js';

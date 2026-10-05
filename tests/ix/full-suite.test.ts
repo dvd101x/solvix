@@ -21,12 +21,7 @@ import {
   nelderMead,
   curveFit,
 } from '../../src/ix/optimize/minimize.js';
-import {
-  toChartJS,
-  toPlotly,
-  toObservablePlot,
-  plotSVG,
-} from '../../src/ix/plot/adapters.js';
+import { plotSVG } from '../../src/ix/plot/svg.js';
 import {
   help,
   summary,
@@ -167,26 +162,7 @@ describe('ix / optimize / minimize & curveFit', () => {
   });
 });
 
-describe('ix / plot / adapters & SVG generator', () => {
-  it('formats data for Chart.js, Plotly and Observable Plot', () => {
-    const x = [0, 1, 2];
-    const y = [10, 20, 30];
-
-    const chartjs = toChartJS(x, y, { title: 'Test' });
-    expect(chartjs.type).toBe('line');
-    expect(chartjs.data.datasets[0].data).toEqual([10, 20, 30]);
-
-    const plotly = toPlotly(x, y, { title: 'Test' });
-    expect(plotly.data[0].x).toEqual([0, 1, 2]);
-
-    const observable = toObservablePlot(x, y);
-    expect(observable).toEqual([
-      { x: 0, y: 10 },
-      { x: 1, y: 20 },
-      { x: 2, y: 30 },
-    ]);
-  });
-
+describe('ix / plot / SVG generator', () => {
   it('generates lightweight standalone SVG plots', () => {
     const svg = plotSVG([0, 1, 2], [0, 1, 4]);
     expect(svg).toContain('<svg');
@@ -224,7 +200,7 @@ describe('ix / ai / helpers & prompts', () => {
     expect(df.col('y').get(1)).toBe(20);
   });
 
-  it('parses MATLAB matrix notation "1 2; 3 4"', () => {
+  it('parses compact matrix notation "1 2; 3 4"', () => {
     const mat = fromMatrixString('1 2 3; 4 5 6');
     expect(Array.from(mat.shape)).toEqual([2, 3]);
     expect(mat.get(1, 2)).toBe(6);

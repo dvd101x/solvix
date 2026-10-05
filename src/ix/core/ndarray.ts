@@ -225,7 +225,7 @@ export class NDArray {
     return build(0, this.offset);
   }
 
-  // --- Métodos de Fábrica (NumPy/Julia style) ---
+  // --- Factory methods ---
 
   public static zeros(shape: number[] | Int32Array, order: 'C' | 'F' = 'C'): NDArray {
     let size = 1;

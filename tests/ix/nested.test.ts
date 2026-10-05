@@ -35,7 +35,7 @@ describe('ix / core / nested-array', () => {
     expect(tensor.get(0, 1, 1)).toBe(40);
     expect(tensor.get(1, 0, 0)).toBe(50);
 
-    // Negative indices (Python/Julia style)
+    // Negative indices count backward from the end.
     expect(tensor.get(-1, -1, -1)).toBe(80);
 
     // In-place set

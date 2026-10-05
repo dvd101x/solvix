@@ -1,7 +1,7 @@
 {
   "name": "solvix",
   "version": "0.1.0",
-  "description": "Scientific computing for TypeScript with Julia-style multiple dispatch and high-performance adapters",
+  "description": "Scientific computing for TypeScript with multidimensional arrays and numerical operations",
   "type": "module",
   "main": "./dist/src/ix/index.js",
   "types": "./dist/src/ix/index.d.ts",

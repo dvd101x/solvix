@@ -15,7 +15,7 @@ import {
 } from '../../src/ix/stats/series-ops.js';
 import { DataFrame } from '../../src/ix/dataframe/dataframe.js';
 
-describe('ix / stats / series-ops (Pandas style)', () => {
+describe('ix / stats / series operations', () => {
   it('computes rolling windows (mean, sum, min, max)', () => {
     // Serie: [10, 20, 30, 40, 50]
     const s = new NDArray(new Float64Array([10, 20, 30, 40, 50]), { shape: [5] });

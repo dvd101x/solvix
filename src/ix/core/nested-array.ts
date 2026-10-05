@@ -71,7 +71,7 @@ export class NestedArray {
       if (cur === undefined || cur === null || !Array.isArray(cur)) {
         throw new TypeError(`Cannot index into non-array at dimension ${i}`);
       }
-      // Soporte de índices negativos estilo Python / Julia (end - k)
+      // Support negative indices relative to the end of the array.
       const normalizedIdx = idx < 0 ? cur.length + idx : idx;
       if (normalizedIdx < 0 || normalizedIdx >= cur.length) {
         throw new RangeError(`Index ${idx} out of range for axis ${i} of size ${cur.length}`);

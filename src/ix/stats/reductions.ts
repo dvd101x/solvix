@@ -1,20 +1,20 @@
 /**
  * @file reductions.ts
- * Reducciones por eje y estadísticas estilo NumPy y Pandas:
+ * Reducciones por eje y estadísticas descriptivas:
  * - sum, prod
  * - mean, median, mode
  * - var (varianza), std (desviación estándar)
  * - min, max, argmin, argmax
  * - quantiles / percentiles
  * - skew (asimetría), kurtosis (curtosis)
- * - describe() resumen estadístico completo estilo pandas.DataFrame.describe()
+ * - describe() resumen estadístico completo
  */
 import { NDArray } from '../core/ndarray.js';
 
 export interface ReductionOptions {
   axis?: number;
   keepdims?: boolean;
-  ddof?: number; // Delta degrees of freedom (0 para muestra NumPy, 1 para Pandas/muestra insesgada)
+  ddof?: number; // Delta degrees of freedom (0 for population, 1 for unbiased sample).
 }
 
 export interface StatsSummary {
@@ -280,7 +280,7 @@ export function kurtosis(arr: NDArray, opts: ReductionOptions = {}): NDArray | n
 }
 
 /**
- * Resumen descriptivo completo de un tensor (estilo pandas.Series.describe()).
+ * Resumen descriptivo completo de un tensor.
  */
 export function describe(arr: NDArray): StatsSummary {
   const vals: number[] = [];

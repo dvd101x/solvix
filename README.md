@@ -1,8 +1,7 @@
 # Solvix — High-Performance Scientific Computing for Modern JavaScript / TypeScript
 
-> **Solvix** is a scientific computing library inspired by **Julia**'s execution model, **NumPy**'s array ergonomics, and **V8 (TurboFan/Maglev)** performance.
+> **Solvix** is a lightweight scientific computing library for modern JavaScript and TypeScript.
 
-[![Vitest](https://img.shields.io/badge/Tested%20with-Vitest-yellow.svg)](https://vitest.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 
 ---
@@ -20,14 +19,14 @@ const values = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
 const result = add(values, 2);
 ```
 
-To work from a local checkout, run `npm install`, then `npm run build` or `npm run example`. The public package entry point is `solvix`; its implementation currently lives in `src/ix` and has no runtime dependencies. Legacy adapters outside `src/ix` are not part of the default package build.
+To work from a local checkout, run `npm install`, then `npm run build` or `npm run example`. The public package entry point is `solvix`; its implementation currently lives in `src/ix` and has no runtime dependencies.
 
 ## ⚡ Design Principles
 
-1. **API priorities**: `Python / NumPy ➔ Julia ➔ MATLAB / Octave`.
+1. **API priorities**: clear, predictable numerical operations.
 2. **Zero allocation**: Loop-unrolled indexing algorithms for dimensions $1\text{D}$ through $6\text{D}$ minimize garbage-collector pressure.
 3. **Monomorphism and inlining in V8**: Direct access to flat (`TypedArray`) buffers helps avoid deoptimizations such as megamorphic call sites.
-4. **Dynamic multiple dispatch**: Julia-style polymorphism with signature caching for fast hot paths.
+4. **Dynamic multiple dispatch**: signature-based polymorphism with caching for fast hot paths.
 5. **Lazy, zero-copy slicing**: Strided views share the same `ArrayBuffer`.
 6. **Worker parallelism**: `SharedArrayBuffer` access, zero-copy tensor transfer, and remotely evaluable mathematical scopes.
 7. **Computation graphs (DAGs)**: Expressions support topological dependency resolution, memoization, and cycle detection.
@@ -39,22 +38,12 @@ To work from a local checkout, run `npm install`, then `npm run build` or `npm r
 ```
 solvix/
 ├── src/
-│   ├── adapters/
-│   │   ├── mljs.ts
-│   │   ├── numjs.ts
-│   │   ├── stdlib.ts
-│   │   └── tfjs.ts
-│   ├── core/
-│   │   ├── dispatch.ts
-│   │   └── ndarray.ts
-│   ├── environment/
-│   │   └── dispatcher.ts
 │   ├── ix/
 │   │   ├── core/
 │   │   │   ├── strides.ts            # Unrolled sub2ind functions (1D-6D) and C/Fortran layouts
 │   │   │   ├── ndarray.ts            # Core NDArray with inlined get/set and lazy slicing
 │   │   │   ├── nested-array.ts       # Native NestedArray without forced typed-buffer conversion
-│   │   │   ├── dispatcher.ts         # Julia-style multiple-dispatch engine with caching
+│   │   │   ├── dispatcher.ts         # Multiple-dispatch engine with caching
 │   │   │   └── index.ts              # Centralized core exports
 │   │   ├── ops/
 │   │   │   └── math-ops.ts           # Element-wise operations with multidimensional broadcasting
@@ -78,7 +67,7 @@ solvix/
 │       ├── advanced.test.ts          # Indexing, worker, and DAG tests
 │       └── linalg-parser.test.ts     # LU/QR/SVD/solve and parser AST tests
 ├── benchmarks/
-│   └── bench-ix.ts                   # Mitata microbenchmarks
+│   └── bench-ix.ts                   # Numerical microbenchmarks
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -88,7 +77,7 @@ solvix/
 
 ## 🛠️ Features
 
-### 1. Advanced Indexing (NumPy / Julia Style)
+### 1. Advanced Indexing
 
 #### A. Boolean Masks (`booleanMask` and `putMask`)
 ```typescript
@@ -224,7 +213,7 @@ import { NDArray, solve, lu, qr, svd, inv, det } from 'solvix';
 const A = new NDArray(new Float64Array([4, 3, 6, 3]), { shape: [2, 2] });
 const b = new Float64Array([10, 12]);
 
-// 1. Solve the linear system Ax = b (MATLAB/Julia-style A \ b)
+// 1. Solve the linear system Ax = b
 const x = solve(A, b); // [1.0, 2.0]
 
 // 2. Determinant and inverse
@@ -270,7 +259,7 @@ console.log(bounded({ x: 2 })); // 1
 
 Solve initial-value problems of the form $\frac{dy}{dt} = f(t, y)$:
 - **RK4**: Classical fourth-order Runge-Kutta with a fixed step size.
-- **ODE45**: Embedded Dormand-Prince 5(4) with adaptive step-size control (similar to MATLAB `ode45` and Julia `DifferentialEquations.jl`).
+- **ODE45**: Embedded Dormand-Prince 5(4) with adaptive step-size control.
 
 ```typescript
 import { NDArray, ode45 } from 'solvix';
@@ -405,7 +394,7 @@ const limited = clip(A, 2, 5); // [2, 2, 3, 4, 5, 5]
 
 ---
 
-### 12. Axis Reductions and Descriptive Statistics (Pandas-Style)
+### 12. Axis Reductions and Descriptive Statistics
 
 Global and axis-based (`axis`) reductions support degrees-of-freedom correction (`ddof`):
 
@@ -428,7 +417,7 @@ const dot = sumProduct(
 const med = median(M); // 3.5
 const q75 = quantile(M, 0.75); // 75th percentile
 
-// 3. Full summary, similar to pandas.DataFrame.describe()
+// 3. Full descriptive summary
 const stats = describe(M);
 console.log(stats);
 // {
@@ -631,24 +620,15 @@ const fit = curveFit(model, [1, 2, 3], [3, 5, 7], [1, 0]); // p = [2, 1]
 
 ---
 
-### 20. Visualization Adapters (Chart.js, Plotly, Observable, SVG)
+### 20. Standalone SVG Plot
 
 ```typescript
-import { toChartJS, toPlotly, toObservablePlot, plotSVG } from 'solvix';
+import { plotSVG } from 'solvix';
 
 const x = [0, 1, 2, 3];
 const y = [0, 1, 4, 9];
 
-// 1. Chart.js
-const chartConfig = toChartJS(x, y, { title: 'Parabola' });
-
-// 2. Plotly.js
-const { data, layout } = toPlotly(x, y, { mode: 'lines+markers' });
-
-// 3. Observable Plot
-const plotData = toObservablePlot(x, y);
-
-// 4. Standalone SVG renderer (<2 KB) with no dependencies
+// Standalone SVG renderer with no dependencies
 const svgString = plotSVG(x, y, { color: '#38bdf8' });
 ```
 
@@ -771,4 +751,4 @@ npm run example
 npm run bench
 ```
 
-`npm run example` runs a short local example of the public API. `npm test` runs tests for that API. `npm run bench` runs the Mitata microbenchmarks, and `npm run dev` starts the TypeScript compiler in watch mode.
+`npm run example` runs a short local example of the public API. `npm test` runs tests for that API. `npm run bench` runs the numerical benchmarks, and `npm run dev` starts the TypeScript compiler in watch mode.

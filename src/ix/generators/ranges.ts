@@ -1,6 +1,6 @@
 /**
  * @file ranges.ts
- * Generadores numéricos y de mallas espaciales estilo NumPy (linspace, arange, logspace, meshgrid, eye).
+ * Generadores numéricos y de mallas espaciales (linspace, arange, logspace, meshgrid, eye).
  */
 import { NDArray } from '../core/ndarray.js';
 

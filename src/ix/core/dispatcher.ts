@@ -1,6 +1,6 @@
 /**
  * @file dispatcher.ts
- * Motor de despacho múltiple tipo Julia con caché de firmas polimórficas.
+ * Motor de despacho múltiple con caché de firmas polimórficas.
  */
 
 export const Any = Symbol('Any');

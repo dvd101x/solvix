@@ -1,7 +1,7 @@
 /**
  * @file in-place.ts
- * Operaciones mutadoras in-place (!) estilo Julia (add!, mul!, sub!, div!)
- * y scope de memoria prealocada (Memory Arena / tidy) estilo TensorFlow.js para cero GC.
+ * Operaciones mutadoras in-place (!)
+ * and preallocated memory scope (memory arena / tidy) for zero garbage-collection overhead.
  */
 import { NDArray } from '../core/ndarray.js';
 
