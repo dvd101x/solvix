@@ -20,7 +20,7 @@ const values = new NDArray(new Float64Array([1, 2, 3]), { shape: [3] });
 const result = add(values, 2);
 ```
 
-To work from a local checkout, install dependencies and run `npm run build`. The public package entry point is `solvix`; its implementation currently lives in `src/ix`.
+To work from a local checkout, run `npm install`, then `npm run build` or `npm run example`. The public package entry point is `solvix`; its implementation currently lives in `src/ix` and has no runtime dependencies. Legacy adapters outside `src/ix` are not part of the default package build.
 
 ## ⚡ Design Principles
 
@@ -764,10 +764,11 @@ if (!diag.success) {
 ## 🧪 Development and Validation
 
 ```bash
-npm ci
-npm test
+npm install
 npm run build
+npm test
+npm run example
 npm run bench
 ```
 
-`npm run bench` runs the Mitata microbenchmarks. `npm run dev` starts the TypeScript compiler in watch mode.
+`npm run example` runs a short local example of the public API. `npm test` runs tests for that API. `npm run bench` runs the Mitata microbenchmarks, and `npm run dev` starts the TypeScript compiler in watch mode.

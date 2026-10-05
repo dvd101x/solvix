@@ -17,30 +17,15 @@
   "scripts": {
     "dev": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
-    "test": "vitest run",
+    "test": "vitest run tests/ix",
+    "example": "tsx examples/quickstart.ts",
     "bench": "tsx benchmarks/bench-ix.ts",
     "prepack": "npm run build"
   },
-  "dependencies": {
-    "@codemirror/commands": "^6.8.0",
-    "@codemirror/language": "^6.10.8",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/view": "^6.36.4",
-    "@lezer/common": "^1.2.3",
-    "@lezer/generator": "^1.7.2",
-    "@lezer/highlight": "^1.2.1",
-    "@tensorflow/tfjs": "^4.22.0",
-    "mathjs": "^14.0.1",
-    "ml-matrix": "^6.12.1",
-    "numjs": "^0.16.1"
-  },
   "devDependencies": {
-    "@types/node": "^22.13.0",
-    "@types/numjs": "^0.16.4",
     "mitata": "^1.0.34",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0",
     "vitest": "^3.0.5"
   }
 }

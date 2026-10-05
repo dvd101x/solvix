@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "rootDir": "."
   },
-  "include": ["src/**/*", "demo/**/*", "benchmarks/**/*", "tests/**/*"]
+  "include": ["src/ix/**/*.ts"]
 }
