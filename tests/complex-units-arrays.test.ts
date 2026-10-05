@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  transpose, NDArray, Complex, add, sub, mul, div, pow, conj, real, imag, abs, sum, mean, kilometer, meter, second, Quantity,
+  transpose, NDArray, Complex, add, sub, mul, div, pow, conj, real, imag, abs, sum, mean, quantile, percentile, kilometer, meter, second, Quantity,
 } from '../src/index.js';
 
 describe('NDArray with complex numbers', () => {
@@ -72,6 +72,8 @@ describe('NDArray with units', () => {
     expect(s).toBeInstanceOf(Quantity);
     expect(s.value).toBe(6000);
     expect((mean(d) as unknown as Quantity).value).toBe(2000);
+    expect((quantile(d, 0.25) as Quantity).value).toBe(1500);
+    expect((percentile(d, 50) as Quantity).value).toBe(2000);
   });
   it('is preserved by views', () => {
     expect(d.slice([1, 3]).unit?.m).toBe(1);

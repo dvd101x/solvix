@@ -22,6 +22,7 @@ import {
   variance,
   median,
   quantile,
+  percentile,
   sumProduct,
   all,
   any,
@@ -168,6 +169,16 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(countNonzero(empty)).toBe(0);
   });
 
+  it('reduces truth values and counts along an axis, preserving requested dimensions', () => {
+    const mask = NDArray.fromArray([[1, 0, 1], [0, 2, 0]]);
+
+    expect(Array.from((all(mask, { axis: 0 }) as NDArray).data)).toEqual([0, 0, 0]);
+    expect(Array.from((any(mask, { axis: 0 }) as NDArray).data)).toEqual([1, 1, 1]);
+    expect(Array.from((countNonzero(mask, { axis: 0 }) as NDArray).data)).toEqual([1, 1, 1]);
+    expect(Array.from((countNonzero(mask, { axis: -1, keepdims: true }) as NDArray).shape)).toEqual([2, 1]);
+    expect(Array.from((countNonzero(mask, { axis: 1 }) as NDArray).data)).toEqual([2, 1]);
+  });
+
   it('computes median and quantiles', () => {
     const data = new NDArray(new Float64Array([10, 20, 30, 40, 50]), { shape: [5] });
     expect(median(data)).toBe(30);
@@ -176,6 +187,9 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(quantile(data, 0.75)).toBe(40);
     expect(quantile(data, 0)).toBe(10);
     expect(quantile(data, 1)).toBe(50);
+    expect(percentile(data, 25)).toBe(20);
+    expect(() => percentile(data, 101)).toThrow(RangeError);
+    expect(() => quantile(data, NaN)).toThrow(RangeError);
   });
 
   it('distinguishes population and sample variance', () => {
@@ -196,5 +210,13 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(desc.median).toBe(5.5);
     expect(desc.std).toBeCloseTo(3.02765, 4);
     expect(desc.skew).toBeCloseTo(0.0, 4); // simétrica
+  });
+
+  it('returns NaN statistics for an empty descriptive summary', () => {
+    const desc = statsDescribe(NDArray.zeros([0]));
+    expect(desc.count).toBe(0);
+    expect(Number.isNaN(desc.mean)).toBe(true);
+    expect(Number.isNaN(desc.min)).toBe(true);
+    expect(Number.isNaN(desc.max)).toBe(true);
   });
 });

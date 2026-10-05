@@ -2,10 +2,9 @@
  * @file reductions.ts
  * Reducciones por eje y estadísticas descriptivas:
  * - sum, prod
- * - mean, median, mode
- * - var (varianza), std (desviación estándar)
- * - min, max, argmin, argmax
- * - quantiles / percentiles
+ * - mean, median, variance, std
+ * - min, max
+ * - quantile / percentile
  * - skew (asimetría), kurtosis (curtosis)
  * - describe() resumen estadístico completo
  */
@@ -31,22 +30,64 @@ export interface StatsSummary {
   kurtosis: number;
 }
 
+function sumValues(values: number[]): number {
+  let total = 0;
+  for (let i = 0; i < values.length; i++) total += values[i];
+  return total;
+}
+
+function centralMoments(values: number[]) {
+  const count = values.length;
+  const mean = sumValues(values) / count;
+  let sumSquared = 0;
+  let sumCubed = 0;
+  let sumFourth = 0;
+
+  for (let i = 0; i < count; i++) {
+    const diff = values[i] - mean;
+    const squared = diff * diff;
+    sumSquared += squared;
+    sumCubed += squared * diff;
+    sumFourth += squared * squared;
+  }
+
+  return {
+    count,
+    mean,
+    second: sumSquared / count,
+    third: sumCubed / count,
+    fourth: sumFourth / count,
+  };
+}
+
+function interpolateQuantile(sorted: number[], q: number): number {
+  const position = (sorted.length - 1) * q;
+  const base = Math.floor(position);
+  const fraction = position - base;
+  return sorted[base + 1] !== undefined
+    ? sorted[base] + fraction * (sorted[base + 1] - sorted[base])
+    : sorted[base];
+}
+
 /**
  * Función genérica de reducción multidimensional por eje.
  */
 function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number): NDArray | number;
 function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: true): NDArray | number | Quantity;
+function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: false, allowUnit: true): NDArray | number;
+function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: boolean, allowUnit: boolean): NDArray | number | Quantity;
 function reduceAxis(
   arr: NDArray,
   axis: number | undefined,
   keepdims: boolean,
   reducer: (values: number[]) => number,
-  keepUnit = false
+  keepUnit = false,
+  allowUnit = false
 ): NDArray | number | Quantity {
   if (arr.isComplex) {
     throw new TypeError('Reductions are not defined for complex arrays; reduce real(z), imag(z) or abs(z) instead');
   }
-  if (arr.unit && !keepUnit) {
+  if (arr.unit && !keepUnit && !allowUnit) {
     throw new TypeError('This reduction is not supported for arrays with units; convert with .to(unit) first');
   }
   const unit = keepUnit ? arr.unit : undefined;
@@ -117,11 +158,7 @@ function reduceAxis(
 // --- Operaciones de Reducción ---
 
 export function sum(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
-  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
-    let s = 0;
-    for (let i = 0; i < vals.length; i++) s += vals[i];
-    return s;
-  }, true);
+  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, sumValues, true);
 }
 
 export function sumProduct(...arrays: NDArray[]): number {
@@ -146,26 +183,45 @@ export function sumProduct(...arrays: NDArray[]): number {
   return result;
 }
 
-export function all(arr: NDArray): boolean {
-  for (const value of arr) {
-    if (value === 0) return false;
-  }
-  return true;
+export function all(arr: NDArray): boolean;
+export function all(arr: NDArray, opts: ReductionOptions): boolean | NDArray;
+export function all(arr: NDArray, opts: ReductionOptions = {}): boolean | NDArray {
+  const result = reduceAxis(
+    arr,
+    opts.axis,
+    opts.keepdims ?? false,
+    (values) => values.every((value) => value !== 0) ? 1 : 0,
+    false,
+    true
+  );
+  return typeof result === 'number' ? result !== 0 : result;
 }
 
-export function any(arr: NDArray): boolean {
-  for (const value of arr) {
-    if (value !== 0) return true;
-  }
-  return false;
+export function any(arr: NDArray): boolean;
+export function any(arr: NDArray, opts: ReductionOptions): boolean | NDArray;
+export function any(arr: NDArray, opts: ReductionOptions = {}): boolean | NDArray {
+  const result = reduceAxis(
+    arr,
+    opts.axis,
+    opts.keepdims ?? false,
+    (values) => values.some((value) => value !== 0) ? 1 : 0,
+    false,
+    true
+  );
+  return typeof result === 'number' ? result !== 0 : result;
 }
 
-export function countNonzero(arr: NDArray): number {
-  let count = 0;
-  for (const value of arr) {
-    if (value !== 0) count++;
-  }
-  return count;
+export function countNonzero(arr: NDArray): number;
+export function countNonzero(arr: NDArray, opts: ReductionOptions): NDArray | number;
+export function countNonzero(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
+  return reduceAxis(
+    arr,
+    opts.axis,
+    opts.keepdims ?? false,
+    (values) => values.reduce((count, value) => count + (value !== 0 ? 1 : 0), 0),
+    false,
+    true
+  );
 }
 
 export function prod(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
@@ -178,9 +234,7 @@ export function prod(arr: NDArray, opts: ReductionOptions = {}): NDArray | numbe
 
 export function mean(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
-    let s = 0;
-    for (let i = 0; i < vals.length; i++) s += vals[i];
-    return s / vals.length;
+    return sumValues(vals) / vals.length;
   }, true);
 }
 
@@ -197,15 +251,7 @@ export function variance(arr: NDArray, opts: ReductionOptions = {}): NDArray | n
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
     const n = vals.length;
     if (n <= ddof) return NaN;
-    let s = 0;
-    for (let i = 0; i < n; i++) s += vals[i];
-    const m = s / n;
-    let ss = 0;
-    for (let i = 0; i < n; i++) {
-      const diff = vals[i] - m;
-      ss += diff * diff;
-    }
-    return ss / (n - ddof);
+    return centralMoments(vals).second * n / (n - ddof);
   });
 }
 
@@ -218,25 +264,22 @@ export function std(arr: NDArray, opts: ReductionOptions = {}): NDArray | number
 }
 
 export function median(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
+  return quantile(arr, 0.5, opts);
+}
+
+export function quantile(arr: NDArray, q: number, opts: ReductionOptions = {}): NDArray | number | Quantity {
+  if (!Number.isFinite(q) || q < 0 || q > 1) throw new RangeError(`Quantile must be in range [0, 1], got ${q}`);
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
     const sorted = [...vals].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    return interpolateQuantile(sorted, q);
   }, true);
 }
 
-export function quantile(arr: NDArray, q: number, opts: ReductionOptions = {}): NDArray | number {
-  if (q < 0 || q > 1) throw new RangeError(`Quantile must be in range [0, 1], got ${q}`);
-  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
-    const sorted = [...vals].sort((a, b) => a - b);
-    const pos = (sorted.length - 1) * q;
-    const base = Math.floor(pos);
-    const rest = pos - base;
-    if (sorted[base + 1] !== undefined) {
-      return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-    }
-    return sorted[base];
-  });
+export function percentile(arr: NDArray, p: number, opts: ReductionOptions = {}): NDArray | number | Quantity {
+  if (!Number.isFinite(p) || p < 0 || p > 100) {
+    throw new RangeError(`Percentile must be in range [0, 100], got ${p}`);
+  }
+  return quantile(arr, p / 100, opts);
 }
 
 /**
@@ -244,24 +287,11 @@ export function quantile(arr: NDArray, q: number, opts: ReductionOptions = {}): 
  */
 export function skew(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
-    const n = vals.length;
-    if (n < 3) return NaN;
-    let s = 0;
-    for (let i = 0; i < n; i++) s += vals[i];
-    const m = s / n;
-
-    let m2 = 0;
-    let m3 = 0;
-    for (let i = 0; i < n; i++) {
-      const diff = vals[i] - m;
-      m2 += diff * diff;
-      m3 += diff * diff * diff;
-    }
-    m2 /= n;
-    m3 /= n;
-    const stdDev = Math.sqrt(m2);
+    const moments = centralMoments(vals);
+    if (moments.count < 3) return NaN;
+    const stdDev = Math.sqrt(moments.second);
     if (stdDev === 0) return 0;
-    return m3 / Math.pow(stdDev, 3);
+    return moments.third / Math.pow(stdDev, 3);
   });
 }
 
@@ -270,23 +300,10 @@ export function skew(arr: NDArray, opts: ReductionOptions = {}): NDArray | numbe
  */
 export function kurtosis(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => {
-    const n = vals.length;
-    if (n < 4) return NaN;
-    let s = 0;
-    for (let i = 0; i < n; i++) s += vals[i];
-    const m = s / n;
-
-    let m2 = 0;
-    let m4 = 0;
-    for (let i = 0; i < n; i++) {
-      const diff = vals[i] - m;
-      m2 += diff * diff;
-      m4 += diff * diff * diff * diff;
-    }
-    m2 /= n;
-    m4 /= n;
-    if (m2 === 0) return 0;
-    return m4 / (m2 * m2) - 3.0; // Exceso respecto a normal
+    const moments = centralMoments(vals);
+    if (moments.count < 4) return NaN;
+    if (moments.second === 0) return 0;
+    return moments.fourth / (moments.second * moments.second) - 3.0;
   });
 }
 
@@ -299,45 +316,27 @@ export function describe(arr: NDArray): StatsSummary {
   const n = vals.length;
   vals.sort((a, b) => a - b);
 
-  let sumVal = 0;
-  for (let i = 0; i < n; i++) sumVal += vals[i];
-  const m = sumVal / n;
-
-  let ss = 0;
-  let m3 = 0;
-  let m4 = 0;
-  for (let i = 0; i < n; i++) {
-    const diff = vals[i] - m;
-    const diff2 = diff * diff;
-    ss += diff2;
-    m3 += diff2 * diff;
-    m4 += diff2 * diff2;
+  if (n === 0) {
+    return {
+      count: 0, mean: NaN, std: NaN, min: NaN, p25: NaN,
+      median: NaN, p75: NaN, max: NaN, skew: NaN, kurtosis: NaN,
+    };
   }
 
-  const s = n > 1 ? Math.sqrt(ss / (n - 1)) : 0;
-  const stdPop = Math.sqrt(ss / n);
-  const skewVal = stdPop > 0 && n > 2 ? (m3 / n) / Math.pow(stdPop, 3) : 0;
-  const kurtVal = stdPop > 0 && n > 3 ? (m4 / n) / Math.pow(stdPop, 4) - 3 : 0;
-
-  const getP = (p: number) => {
-    const pos = (n - 1) * p;
-    const base = Math.floor(pos);
-    const rest = pos - base;
-    return vals[base + 1] !== undefined
-      ? vals[base] + rest * (vals[base + 1] - vals[base])
-      : vals[base];
-  };
+  const moments = centralMoments(vals);
+  const sampleStd = n > 1 ? Math.sqrt(moments.second * n / (n - 1)) : 0;
+  const stdPop = Math.sqrt(moments.second);
 
   return {
     count: n,
-    mean: m,
-    std: s,
+    mean: moments.mean,
+    std: sampleStd,
     min: vals[0],
-    p25: getP(0.25),
-    median: getP(0.5),
-    p75: getP(0.75),
+    p25: interpolateQuantile(vals, 0.25),
+    median: interpolateQuantile(vals, 0.5),
+    p75: interpolateQuantile(vals, 0.75),
     max: vals[n - 1],
-    skew: skewVal,
-    kurtosis: kurtVal,
+    skew: stdPop > 0 && n > 2 ? moments.third / Math.pow(stdPop, 3) : 0,
+    kurtosis: stdPop > 0 && n > 3 ? moments.fourth / (moments.second * moments.second) - 3 : 0,
   };
 }

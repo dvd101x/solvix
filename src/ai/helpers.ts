@@ -61,19 +61,24 @@ const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: 
     example: 'const mask = solvix.NDArray.fromArray([1, 0, 1]); const values = solvix.NDArray.fromArray([3, 4, 5]); solvix.where(mask, values, 0);',
   },
   all: {
-    desc: 'Returns true when every element is nonzero.',
-    signature: 'all(arr: NDArray): boolean',
-    example: 'solvix.all(mask);',
+    desc: 'Returns true when every element is nonzero; optionally reduces along an axis.',
+    signature: 'all(arr: NDArray, opts?: ReductionOptions): boolean | NDArray',
+    example: 'solvix.all(mask); solvix.all(mask, { axis: 0 });',
   },
   any: {
-    desc: 'Returns true when at least one element is nonzero.',
-    signature: 'any(arr: NDArray): boolean',
-    example: 'solvix.any(mask);',
+    desc: 'Returns true when at least one element is nonzero; optionally reduces along an axis.',
+    signature: 'any(arr: NDArray, opts?: ReductionOptions): boolean | NDArray',
+    example: 'solvix.any(mask); solvix.any(mask, { axis: 0 });',
   },
   countNonzero: {
-    desc: 'Counts nonzero elements, including non-finite values such as NaN.',
-    signature: 'countNonzero(arr: NDArray): number',
-    example: 'solvix.countNonzero(values);',
+    desc: 'Counts nonzero elements, including NaN; optionally counts along an axis.',
+    signature: 'countNonzero(arr: NDArray, opts?: ReductionOptions): number | NDArray',
+    example: 'solvix.countNonzero(values); solvix.countNonzero(values, { axis: 0 });',
+  },
+  percentile: {
+    desc: 'Computes a percentile using linear interpolation, optionally along an axis.',
+    signature: 'percentile(arr: NDArray, p: number, opts?: ReductionOptions): number | NDArray | Quantity',
+    example: 'solvix.percentile(values, 25); // 25th percentile',
   },
   sumProduct: {
     desc: 'Sums element-wise products of one or more NDArrays with identical shapes.',

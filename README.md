@@ -102,6 +102,10 @@ const selected = where(mask, values, 0); // [10, 0, 30]; all arguments broadcast
 all(mask);          // false
 any(mask);          // true
 countNonzero(mask); // 2
+
+const matrixMask = NDArray.fromArray([[1, 0, 1], [0, 1, 0]]);
+countNonzero(matrixMask, { axis: 0 }); // [1, 1, 1]
+any(matrixMask, { axis: 1 });         // [1, 1]
 ```
 
 ---
