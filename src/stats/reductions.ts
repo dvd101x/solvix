@@ -10,6 +10,8 @@
  */
 import { NDArray } from '../core/ndarray.js';
 import { Quantity } from '../units/units.js';
+import { broadcastMap } from '../ops/broadcast-map.js';
+import { reduceTensorAxis } from './reduction-utils.js';
 
 export interface ReductionOptions {
   axis?: number;
@@ -28,6 +30,18 @@ export interface StatsSummary {
   max: number;
   skew: number;
   kurtosis: number;
+}
+
+export type AxisStatsSummary = { [K in keyof StatsSummary]: NDArray };
+
+export interface SumProductOptions {
+  axis?: number;
+  keepdims?: boolean;
+}
+
+export interface DescribeOptions {
+  axis?: number;
+  keepdims?: boolean;
 }
 
 function sumValues(values: number[]): number {
@@ -69,90 +83,52 @@ function interpolateQuantile(sorted: number[], q: number): number {
     : sorted[base];
 }
 
+function minValue(values: number[]): number {
+  if (values.length === 0) return Infinity;
+  let result = values[0];
+  for (let i = 1; i < values.length; i++) {
+    if (Number.isNaN(values[i])) return NaN;
+    if (values[i] < result) result = values[i];
+  }
+  return result;
+}
+
+function maxValue(values: number[]): number {
+  if (values.length === 0) return -Infinity;
+  let result = values[0];
+  for (let i = 1; i < values.length; i++) {
+    if (Number.isNaN(values[i])) return NaN;
+    if (values[i] > result) result = values[i];
+  }
+  return result;
+}
+
 /**
  * Función genérica de reducción multidimensional por eje.
  */
 function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number): NDArray | number;
 function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: true): NDArray | number | Quantity;
-function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: false, allowUnit: true): NDArray | number;
-function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: boolean, allowUnit: boolean): NDArray | number | Quantity;
+function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: false): NDArray | number;
 function reduceAxis(
   arr: NDArray,
   axis: number | undefined,
   keepdims: boolean,
   reducer: (values: number[]) => number,
   keepUnit = false,
-  allowUnit = false
 ): NDArray | number | Quantity {
   if (arr.isComplex) {
     throw new TypeError('Reductions are not defined for complex arrays; reduce real(z), imag(z) or abs(z) instead');
   }
-  if (arr.unit && !keepUnit && !allowUnit) {
+  if (arr.unit && !keepUnit) {
     throw new TypeError('This reduction is not supported for arrays with units; convert with .to(unit) first');
   }
-  const unit = keepUnit ? arr.unit : undefined;
-  if (axis === undefined) {
-    // Reducción sobre todo el tensor
-    const allVals: number[] = [];
-    for (const v of arr) allVals.push(v);
-    const result = reducer(allVals);
-    if (keepdims) {
-      const onesShape = new Array(arr.ndim).fill(1);
-      return new NDArray(new Float64Array([result]), { shape: onesShape, unit });
-    }
-    return unit ? new Quantity(result, unit) : result;
+  const result = reduceTensorAxis(arr, axis, keepdims, reducer);
+  if (typeof result === 'number') {
+    return keepUnit && arr.unit ? new Quantity(result, arr.unit) : result;
   }
-
-  const normAxis = axis < 0 ? arr.ndim + axis : axis;
-  if (normAxis < 0 || normAxis >= arr.ndim) {
-    throw new RangeError(`Axis ${axis} is out of bounds for ndim ${arr.ndim}`);
-  }
-
-  const outShape: number[] = [];
-  for (let i = 0; i < arr.ndim; i++) {
-    if (i === normAxis) {
-      if (keepdims) outShape.push(1);
-    } else {
-      outShape.push(arr.shape[i]);
-    }
-  }
-
-  let outSize = 1;
-  for (let d = 0; d < outShape.length; d++) outSize *= outShape[d];
-
-  const outData = new Float64Array(outSize);
-  const axisLen = arr.shape[normAxis];
-
-  // Iterar sobre cada celda del tensor de salida acumulando sobre el eje colapsado
-  const coords = new Int32Array(outShape.length);
-  for (let outIdx = 0; outIdx < outSize; outIdx++) {
-    const srcCoords = new Int32Array(arr.ndim);
-    let cIdx = 0;
-    for (let d = 0; d < arr.ndim; d++) {
-      if (d === normAxis) {
-        srcCoords[d] = 0;
-        if (keepdims) cIdx++;
-      } else {
-        srcCoords[d] = coords[cIdx++];
-      }
-    }
-
-    const colValues: number[] = new Array(axisLen);
-    for (let k = 0; k < axisLen; k++) {
-      srcCoords[normAxis] = k;
-      colValues[k] = arr.get(...Array.from(srcCoords));
-    }
-
-    outData[outIdx] = reducer(colValues);
-
-    for (let d = outShape.length - 1; d >= 0; d--) {
-      coords[d]++;
-      if (coords[d] < outShape[d]) break;
-      coords[d] = 0;
-    }
-  }
-
-  return new NDArray(outData, { shape: outShape.length ? outShape : [1], unit });
+  return keepUnit && arr.unit
+    ? new NDArray(result.data, { shape: result.shape, unit: arr.unit })
+    : result;
 }
 
 // --- Operaciones de Reducción ---
@@ -161,26 +137,38 @@ export function sum(arr: NDArray, opts: ReductionOptions = {}): NDArray | number
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, sumValues, true);
 }
 
-export function sumProduct(...arrays: NDArray[]): number {
+export function sumProduct(...arrays: [NDArray, ...NDArray[]]): number;
+export function sumProduct(...args: [...NDArray[], SumProductOptions]): number | NDArray;
+export function sumProduct(...args: (NDArray | SumProductOptions)[]): number | NDArray {
+  let opts: SumProductOptions = {};
+  const last = args[args.length - 1];
+  if (last && !(last instanceof NDArray)) {
+    opts = args.pop() as SumProductOptions;
+    if (!opts || typeof opts !== 'object' || Array.isArray(opts)) {
+      throw new TypeError('sumProduct options must be an object');
+    }
+    for (const key of Object.keys(opts)) {
+      if (key !== 'axis' && key !== 'keepdims') {
+        throw new TypeError(`Unknown sumProduct option: ${key}`);
+      }
+    }
+  }
+  const arrays = args as NDArray[];
   if (arrays.length === 0) {
     throw new RangeError('sumProduct requires at least one NDArray');
   }
 
-  const first = arrays[0];
-  for (const arr of arrays.slice(1)) {
-    if (arr.ndim !== first.ndim || arr.shape.some((size, axis) => size !== first.shape[axis])) {
-      throw new Error('sumProduct requires arrays with identical shapes');
-    }
+  for (const arr of arrays) {
+    if (!(arr instanceof NDArray)) throw new TypeError('sumProduct arguments must be NDArrays');
+    if (arr.isComplex) throw new TypeError('sumProduct is only defined for real arrays');
   }
 
-  const iterators = arrays.map((arr) => arr[Symbol.iterator]());
-  let result = 0;
-  for (let i = 0; i < first.size; i++) {
+  const products = broadcastMap((...values: number[]) => {
     let product = 1;
-    for (const iterator of iterators) product *= iterator.next().value!;
-    result += product;
-  }
-  return result;
+    for (const value of values) product *= value;
+    return product;
+  }, ...arrays) as NDArray;
+  return reduceAxis(products, opts.axis, opts.keepdims ?? false, sumValues);
 }
 
 export function all(arr: NDArray): boolean;
@@ -191,8 +179,7 @@ export function all(arr: NDArray, opts: ReductionOptions = {}): boolean | NDArra
     opts.axis,
     opts.keepdims ?? false,
     (values) => values.every((value) => value !== 0) ? 1 : 0,
-    false,
-    true
+    false
   );
   return typeof result === 'number' ? result !== 0 : result;
 }
@@ -205,8 +192,7 @@ export function any(arr: NDArray, opts: ReductionOptions = {}): boolean | NDArra
     opts.axis,
     opts.keepdims ?? false,
     (values) => values.some((value) => value !== 0) ? 1 : 0,
-    false,
-    true
+    false
   );
   return typeof result === 'number' ? result !== 0 : result;
 }
@@ -219,8 +205,7 @@ export function countNonzero(arr: NDArray, opts: ReductionOptions = {}): NDArray
     opts.axis,
     opts.keepdims ?? false,
     (values) => values.reduce((count, value) => count + (value !== 0 ? 1 : 0), 0),
-    false,
-    true
+    false
   );
 }
 
@@ -239,11 +224,11 @@ export function mean(arr: NDArray, opts: ReductionOptions = {}): NDArray | numbe
 }
 
 export function min(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
-  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => Math.min(...vals), true);
+  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, minValue, true);
 }
 
 export function max(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
-  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, (vals) => Math.max(...vals), true);
+  return reduceAxis(arr, opts.axis, opts.keepdims ?? false, maxValue, true);
 }
 
 export function variance(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
@@ -310,7 +295,47 @@ export function kurtosis(arr: NDArray, opts: ReductionOptions = {}): NDArray | n
 /**
  * Resumen descriptivo completo de un tensor.
  */
-export function describe(arr: NDArray): StatsSummary {
+export function describe(arr: NDArray): StatsSummary;
+export function describe(arr: NDArray, opts: DescribeOptions & { axis: number }): AxisStatsSummary;
+export function describe(arr: NDArray, opts: DescribeOptions): StatsSummary | AxisStatsSummary;
+export function describe(arr: NDArray, opts: DescribeOptions = {}): StatsSummary | AxisStatsSummary {
+  if (opts.axis !== undefined) {
+    const { axis, keepdims = false } = opts;
+    const reduce = (reducer: (values: number[]) => number) =>
+      reduceTensorAxis(arr, axis, keepdims, reducer) as NDArray;
+
+    return {
+      count: reduce((values) => values.length),
+      mean: reduce((values) => centralMoments(values).mean),
+      std: reduce((values) => {
+        const moments = centralMoments(values);
+        return moments.count > 1
+          ? Math.sqrt(moments.second * moments.count / (moments.count - 1))
+          : 0;
+      }),
+      min: reduce((values) => {
+        return values.length === 0 ? NaN : minValue(values);
+      }),
+      p25: reduce((values) => interpolateQuantile([...values].sort((a, b) => a - b), 0.25)),
+      median: reduce((values) => interpolateQuantile([...values].sort((a, b) => a - b), 0.5)),
+      p75: reduce((values) => interpolateQuantile([...values].sort((a, b) => a - b), 0.75)),
+      max: reduce((values) => {
+        return values.length === 0 ? NaN : maxValue(values);
+      }),
+      skew: reduce((values) => {
+        const moments = centralMoments(values);
+        if (moments.count < 3) return 0;
+        const stdPop = Math.sqrt(moments.second);
+        return stdPop > 0 ? moments.third / Math.pow(stdPop, 3) : 0;
+      }),
+      kurtosis: reduce((values) => {
+        const moments = centralMoments(values);
+        if (moments.count < 4 || moments.second === 0) return 0;
+        return moments.fourth / (moments.second * moments.second) - 3;
+      }),
+    };
+  }
+
   const vals: number[] = [];
   for (const v of arr) vals.push(v);
   const n = vals.length;

@@ -11,6 +11,8 @@
  */
 import { NDArray } from '../core/ndarray.js';
 import { broadcastMap } from '../ops/broadcast-map.js';
+import { reduceTensorAxis } from './reduction-utils.js';
+import type { ReductionOptions } from './reductions.js';
 
 export interface RollingWindow {
   mean(): NDArray;
@@ -216,24 +218,48 @@ export function dropna(arr: NDArray): NDArray {
   return new NDArray(new Float64Array(valid), { shape: [valid.length] });
 }
 
-export function nanmean(arr: NDArray): number {
-  let sum = 0;
-  let count = 0;
-  for (const v of arr) {
-    if (!Number.isNaN(v)) {
-      sum += v;
-      count++;
+export function nanmean(arr: NDArray, opts: ReductionOptions = {}): number | NDArray {
+  return reduceTensorAxis(arr, opts.axis, opts.keepdims ?? false, (values) => {
+    let sum = 0;
+    let count = 0;
+    for (const value of values) {
+      if (!Number.isNaN(value)) {
+        sum += value;
+        count++;
+      }
     }
-  }
-  return count > 0 ? sum / count : NaN;
+    return count > 0 ? sum / count : NaN;
+  });
 }
 
-export function nansum(arr: NDArray): number {
-  let sum = 0;
-  for (const v of arr) {
-    if (!Number.isNaN(v)) sum += v;
-  }
-  return sum;
+export function nansum(arr: NDArray, opts: ReductionOptions = {}): number | NDArray {
+  return reduceTensorAxis(arr, opts.axis, opts.keepdims ?? false, (values) => {
+    let sum = 0;
+    for (const value of values) if (!Number.isNaN(value)) sum += value;
+    return sum;
+  });
+}
+
+export function nanstd(arr: NDArray, opts: ReductionOptions = {}): number | NDArray {
+  const ddof = opts.ddof ?? 0;
+  return reduceTensorAxis(arr, opts.axis, opts.keepdims ?? false, (values) => {
+    let count = 0;
+    let sum = 0;
+    for (const value of values) {
+      if (!Number.isNaN(value)) {
+        count++;
+        sum += value;
+      }
+    }
+    if (count <= ddof) return NaN;
+
+    const mean = sum / count;
+    let squaredDifferences = 0;
+    for (const value of values) {
+      if (!Number.isNaN(value)) squaredDifferences += (value - mean) ** 2;
+    }
+    return Math.sqrt(squaredDifferences / (count - ddof));
+  });
 }
 
 // --- Matrices de Covarianza y Correlación ---

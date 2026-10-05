@@ -177,7 +177,7 @@ describe('ix / ai / helpers & prompts', () => {
     expect(doc).toContain('linspace');
     expect(doc).toContain('Signature:');
 
-    expect(help('sumProduct')).toContain('identical shapes');
+    expect(help('sumProduct')).toContain('broadcast');
     expect(help('where')).toContain('broadcast');
     expect(help(NDArray.prototype.toNestedArray)).toContain('strides');
     expect(help('compile')).toContain('reusable evaluator');

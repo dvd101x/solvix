@@ -385,7 +385,7 @@ const limited = clip(A, 2, 5); // [2, 2, 3, 4, 5, 5]; bounds may also be arrays 
 Global and axis-based (`axis`) reductions support degrees-of-freedom correction (`ddof`):
 
 ```typescript
-import { NDArray, sum, mean, std, variance, median, quantile, sumProduct, describe } from 'solvix';
+import { NDArray, sum, mean, std, variance, median, quantile, percentile, sumProduct, describe } from 'solvix';
 
 // 2x3 matrix: [[1, 2, 3], [4, 5, 6]]
 const M = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
@@ -398,13 +398,20 @@ const dot = sumProduct(
   new NDArray(new Float64Array([1, 2, 3]), { shape: [3] }),
   new NDArray(new Float64Array([4, 5, 6]), { shape: [3] })
 ); // 32
+const weightedColumns = sumProduct(
+  new NDArray(new Float64Array([2, 3]), { shape: [2, 1] }),
+  new NDArray(new Float64Array([10, 20]), { shape: [1, 2] }),
+  { axis: 0 }
+); // [50, 100]; elementwise multiplication broadcasts first
 
 // 2. Measures of position
 const med = median(M); // 3.5
 const q75 = quantile(M, 0.75); // 75th percentile
+const p25 = percentile(M, 25); // 25th percentile
 
 // 3. Full descriptive summary
 const stats = describe(M);
+const columnStats = describe(M, { axis: 0 }); // each statistic is an NDArray with one value per column
 console.log(stats);
 // {
 //   count: 6,
@@ -434,6 +441,9 @@ import {
   shift,
   fillna,
   dropna,
+  nanmean,
+  nansum,
+  nanstd,
   cov,
   corr
 } from 'solvix';
@@ -451,6 +461,12 @@ const ema = ewm(s, { alpha: 0.5 });
 const d = diff(s);       // [NaN, 10, 10, 10, 10]
 const ret = pctChange(s); // Retornos porcentuales
 const lag = shift(s, 1);  // Desplazamiento temporal
+
+// NaN-ignoring reductions also support axis and keepdims options.
+const withMissing = NDArray.fromArray([[1, NaN, 3], [NaN, 5, NaN]]);
+const columnMeans = nanmean(withMissing, { axis: 0 }); // [1, 5, 3]
+const columnSums = nansum(withMissing, { axis: 0 });   // [1, 5, 3]
+const columnStd = nanstd(withMissing, { axis: 0 });    // [0, 0, 0]
 
 // 4. Missing-data cleanup
 const conNaN = new NDArray(new Float64Array([1, NaN, 3]), { shape: [3] });

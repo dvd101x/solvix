@@ -10,6 +10,8 @@ import {
   fillna,
   dropna,
   nanmean,
+  nansum,
+  nanstd,
   cov,
   corr,
 } from '../src/stats/series-ops.js';
@@ -85,6 +87,18 @@ describe('ix / stats / series operations', () => {
 
     // nanmean (1 + 3 + 5) / 3 = 3
     expect(nanmean(messy)).toBe(3);
+    expect(nansum(messy)).toBe(9);
+    expect(nanstd(messy)).toBeCloseTo(Math.sqrt(8 / 3), 12);
+  });
+
+  it('ignores NaNs when reducing by axis', () => {
+    const values = NDArray.fromArray([[1, NaN, 3], [NaN, 5, NaN]]);
+
+    expect(Array.from((nanmean(values, { axis: 0 }) as NDArray).data)).toEqual([1, 5, 3]);
+    expect(Array.from((nansum(values, { axis: 0 }) as NDArray).data)).toEqual([1, 5, 3]);
+    expect(Array.from((nanmean(values, { axis: 1 }) as NDArray).data)).toEqual([2, 5]);
+    expect(Array.from((nanstd(values, { axis: 0, ddof: 1 }) as NDArray).data).every(Number.isNaN)).toBe(true);
+    expect(Array.from((nansum(values, { axis: 0, keepdims: true }) as NDArray).shape)).toEqual([1, 3]);
   });
 
   it('computes covariance and correlation matrices', () => {

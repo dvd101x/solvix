@@ -81,9 +81,24 @@ const DOCS_REGISTRY: Record<string, { desc: string; signature: string; example: 
     example: 'solvix.percentile(values, 25); // 25th percentile',
   },
   sumProduct: {
-    desc: 'Sums element-wise products of one or more NDArrays with identical shapes.',
-    signature: 'sumProduct(...arrays: NDArray[]): number',
-    example: 'solvix.sumProduct(solvix.NDArray.fromArray([1, 2]), solvix.NDArray.fromArray([3, 4])); // 11',
+    desc: 'Sums broadcasted element-wise products; optionally reduces the products along an axis.',
+    signature: 'sumProduct(...arrays: NDArray[], opts?: SumProductOptions): number | NDArray',
+    example: 'solvix.sumProduct(a, b, { axis: 0 });',
+  },
+  nanmean: {
+    desc: 'Computes the mean while ignoring NaN values; optionally reduces along an axis.',
+    signature: 'nanmean(arr: NDArray, opts?: ReductionOptions): number | NDArray',
+    example: 'solvix.nanmean(values, { axis: 0 });',
+  },
+  nansum: {
+    desc: 'Computes the sum while ignoring NaN values; optionally reduces along an axis.',
+    signature: 'nansum(arr: NDArray, opts?: ReductionOptions): number | NDArray',
+    example: 'solvix.nansum(values, { axis: 0 });',
+  },
+  nanstd: {
+    desc: 'Computes standard deviation while ignoring NaN values; supports axis and ddof options.',
+    signature: 'nanstd(arr: NDArray, opts?: ReductionOptions): number | NDArray',
+    example: 'solvix.nanstd(values, { axis: 0, ddof: 1 });',
   },
   toNestedArray: {
     desc: 'Copies an NDArray view into nested JavaScript arrays while respecting its shape, strides, and offset.',

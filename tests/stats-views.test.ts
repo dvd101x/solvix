@@ -18,6 +18,8 @@ import {
 import {
   sum,
   mean,
+  min,
+  max,
   std,
   variance,
   median,
@@ -151,7 +153,26 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(sumProduct(strided, weights, NDArray.ones([2, 2]))).toBe(43);
     expect(sumProduct(NDArray.zeros([0]))).toBe(0);
     expect(() => sumProduct()).toThrow(RangeError);
-    expect(() => sumProduct(strided, NDArray.zeros([4]))).toThrowError(/identical shapes/);
+    expect(() => sumProduct(strided, NDArray.zeros([4]))).toThrowError(/broadcasting/);
+  });
+
+  it('supports broadcasted sum-products reduced by axis', () => {
+    const rows = NDArray.fromArray([[2], [3]]);
+    const columns = NDArray.fromArray([[10, 20]]);
+
+    expect(sumProduct(rows, columns)).toBe(150);
+    expect(Array.from((sumProduct(rows, columns, { axis: 0 }) as NDArray).data)).toEqual([50, 100]);
+    expect(Array.from((sumProduct(rows, columns, { axis: 1 }) as NDArray).data)).toEqual([60, 90]);
+    expect(Array.from((sumProduct(rows, columns, { axis: 0, keepdims: true }) as NDArray).shape)).toEqual([1, 2]);
+  });
+
+  it('reduces very large arrays without spreading values into Math.min/max', () => {
+    const data = new Float64Array(200_000);
+    for (let i = 0; i < data.length; i++) data[i] = data.length - i;
+    const values = new NDArray(data, { shape: [data.length] });
+
+    expect(min(values)).toBe(1);
+    expect(max(values)).toBe(data.length);
   });
 
   it('reduces numeric truth values and counts NaN as nonzero', () => {
@@ -210,6 +231,19 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(desc.median).toBe(5.5);
     expect(desc.std).toBeCloseTo(3.02765, 4);
     expect(desc.skew).toBeCloseTo(0.0, 4); // simétrica
+  });
+
+  it('computes descriptive statistics along an axis', () => {
+    const desc = statsDescribe(M, { axis: 0 });
+
+    expect(Array.from(desc.count.data)).toEqual([2, 2, 2]);
+    expect(Array.from(desc.mean.data)).toEqual([2.5, 3.5, 4.5]);
+    expect(Array.from(desc.min.data)).toEqual([1, 2, 3]);
+    expect(Array.from(desc.max.data)).toEqual([4, 5, 6]);
+
+    const kept = statsDescribe(M, { axis: 1, keepdims: true });
+    expect(Array.from(kept.median.shape)).toEqual([2, 1]);
+    expect(Array.from(kept.median.data)).toEqual([2, 5]);
   });
 
   it('returns NaN statistics for an empty descriptive summary', () => {
