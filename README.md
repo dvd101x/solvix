@@ -491,6 +491,10 @@ const dfCorr = df.corr();
 
 // 4. Export rows as JSON records
 const jsonRows = df.toRecords();
+
+// 5. Cell-wise map and computed columns (built on broadcastMap)
+const scaled = df.map((v) => v / 100);
+const withK = df.withColumn('kelvin', (t) => t + 273.15, 'temperature'); // adds or replaces a column
 ```
 
 ---
@@ -564,6 +568,9 @@ const area = quad((x) => Math.sin(x), 0, Math.PI); // 2.0
 // Integrate discrete sampled data
 const t = trapz([0, 1, 4, 9], [0, 1, 2, 3]);
 const s = simpson([0, 1, 4, 9], [0, 1, 2, 3]);
+
+// Array limits are broadcast: one integral per (a, b) pair, same shape as the limits
+const areas = quad((x) => x * x, [0, 1, 2], 3); // NDArray-like [9, 8.67, 6.33]
 ```
 
 ---
@@ -747,3 +754,17 @@ broadcastInto(out, (a, b) => a + b, y, x);      // same, writing into `out` (any
 ```
 
 `fn` receives only element values. In expressions: `hypot.(y, x)`, `map(f, a, b)`.
+
+Everything below shares this kernel and works on strided views, complex values and nested arrays:
+
+| Function | Purpose |
+|---|---|
+| `mapElements(x, f)` | unary map, `f(value)` |
+| `mapIndexed(x, f)` | `f(value, index, array)` with a 0-based multi-index |
+| `where(cond, a, b)`, `clip(x, lo, hi)` | broadcast all arguments (array bounds allowed) |
+| `addInPlace`, `mulInPlace` | write into any strided `out`, with broadcasting |
+| `quad(f, a, b)`, `fzeroMap(f, a, b)` | one result per broadcast limit/bracket |
+| `DataFrame.map`, `DataFrame.withColumn` | cell-wise and column-wise computation |
+| `diff`, `pctChange` | computed from `shift` |
+
+Helpers: `NDArray.contiguous()` returns the array itself when it is already row-major and gap-free, otherwise a copy; `toFloat64(x)` does the same for plain sequences.
