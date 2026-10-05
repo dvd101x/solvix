@@ -1,26 +1,26 @@
 /**
  * @file units.ts
- * Sistema extensible de unidades físicas, magnitudes dimensionales (SI e imperial)
- * y escalas con offset relativo (Celsius, Fahrenheit):
- * - Registro dinámico de unidades de usuario
- * - Capacidad de desregistrar o reiniciar unidades a su estado canónico
- * - Conversión bidireccional con offsets (T_C, T_F, T_K)
+ * Extensible system for physical units, dimensional quantities (SI and imperial),
+ * and scales with relative offsets (Celsius, Fahrenheit):
+ * - Dynamic registration of user-defined units
+ * - Ability to remove units or reset the registry to its canonical state
+ * - Bidirectional conversion with offsets (T_C, T_F, T_K)
  */
 
 export interface Dimensions {
-  m: number;   // Longitud (metro)
-  kg: number;  // Masa (kilogramo)
-  s: number;   // Tiempo (segundo)
-  A: number;   // Corriente eléctrica (amperio)
-  K: number;   // Temperatura (kelvin)
-  mol: number; // Cantidad de sustancia (mol)
-  cd: number;  // Intensidad luminosa (candela)
+  m: number;   // Length (meter)
+  kg: number;  // Mass (kilogram)
+  s: number;   // Time (second)
+  A: number;   // Electric current (ampere)
+  K: number;   // Temperature (kelvin)
+  mol: number; // Amount of substance (mole)
+  cd: number;  // Luminous intensity (candela)
 }
 
 export class Quantity {
   public readonly value: number;
   public readonly dims: Dimensions;
-  public readonly offset: number; // Offset para unidades térmicas relativas (Celsius, Fahrenheit)
+  public readonly offset: number; // Offset for relative temperature scales (Celsius, Fahrenheit)
 
   constructor(value: number, dims: Partial<Dimensions> = {}, offset: number = 0) {
     this.value = value;
@@ -134,7 +134,7 @@ export class Quantity {
         `Cannot convert [${this.formatDimensions()}] to [${targetUnit.formatDimensions()}]: incompatible dimensions`
       );
     }
-    // Manejo de unidades con offset relativo (temperaturas como degC y degF)
+    // Handle units with relative offsets (temperatures such as degC and degF).
     const baseVal = this.value * 1 + this.offset;
     return (baseVal - targetUnit.offset) / targetUnit.value;
   }
@@ -156,7 +156,7 @@ export class Quantity {
   }
 }
 
-// --- Definiciones Canónicas Base (SI e Imperial) ---
+// --- Canonical Base Units (SI and Imperial) ---
 
 export const meter = new Quantity(1, { m: 1 });
 export const kilometer = new Quantity(1000, { m: 1 });
@@ -188,11 +188,11 @@ export const kelvin = new Quantity(1, { K: 1 });
 export const mol = new Quantity(1, { mol: 1 });
 export const candela = new Quantity(1, { cd: 1 });
 
-// Unidades térmicas con offset (T_K = T_C + 273.15, T_K = (T_F + 459.67) * 5/9)
+// Temperature units with offsets (T_K = T_C + 273.15, T_K = (T_F + 459.67) * 5/9).
 export const celsius = new Quantity(1, { K: 1 }, 273.15);
 export const fahrenheit = new Quantity(5 / 9, { K: 1 }, 255.3722222222222);
 
-// Derivadas
+// Derived units
 export const newton = kilogram.mul(meter).div(second.pow(2));
 export const joule = newton.mul(meter);
 export const watt = joule.div(second);
@@ -217,7 +217,7 @@ export function qty(value: number, base: Quantity): Quantity {
   return new Quantity(value * base.value, base.dims, base.offset);
 }
 
-// --- Registro Extensible de Unidades de Usuario ---
+// --- Extensible User-Defined Unit Registry ---
 
 export interface UnitRegistryEntry {
   name: string;
@@ -282,7 +282,7 @@ class UnitSystemRegistry {
   }
 
   /**
-   * Registra una nueva unidad definida por el usuario.
+   * Registers a new user-defined unit.
    */
   public defineUnit(name: string, symbol: string, quantity: Quantity, description?: string): void {
     const entry: UnitRegistryEntry = { name, symbol, quantity, description, isUserDefined: true };
@@ -291,7 +291,7 @@ class UnitSystemRegistry {
   }
 
   /**
-   * Elimina una unidad específica registrada por el usuario.
+   * Removes a specific registered user-defined unit.
    */
   public removeUnit(nameOrSymbol: string): boolean {
     const key = nameOrSymbol.toLowerCase();
@@ -306,7 +306,7 @@ class UnitSystemRegistry {
   }
 
   /**
-   * Reinicia el registro al conjunto estándar de fábrica eliminando todas las unidades añadidas por el usuario.
+   * Resets the registry to its standard defaults, removing all user-defined units.
    */
   public reset(): void {
     for (const [key, entry] of this.registry.entries()) {
@@ -317,14 +317,14 @@ class UnitSystemRegistry {
   }
 
   /**
-   * Busca una unidad por nombre o símbolo.
+   * Looks up a unit by name or symbol.
    */
   public get(nameOrSymbol: string): Quantity | undefined {
     return this.registry.get(nameOrSymbol.toLowerCase())?.quantity;
   }
 
   /**
-   * Lista todas las unidades registradas.
+   * Lists all registered units.
    */
   public listUnits(): UnitRegistryEntry[] {
     const seen = new Set<string>();

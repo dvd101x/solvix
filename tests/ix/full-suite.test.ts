@@ -53,11 +53,11 @@ describe('ix / signal / DSP & FFT', () => {
   it('computes FFT peak of a pure 50Hz sine wave', () => {
     const fs = 512;
     const duration = 1.0;
-    const s = sinewave(50, duration, fs, 2.0); // Onda senoidal de 50Hz, amp=2.0
+    const s = sinewave(50, duration, fs, 2.0); // 50 Hz sine wave with amplitude 2.0.
 
     const { frequencies, magnitude } = fft(s, fs);
 
-    // Encontrar índice del pico máximo
+    // Find the index of the maximum peak.
     let maxIdx = 0;
     for (let i = 1; i < magnitude.length; i++) {
       if (magnitude[i] > magnitude[maxIdx]) maxIdx = i;
@@ -82,7 +82,7 @@ describe('ix / signal / DSP & FFT', () => {
 
 describe('ix / integrate / numerical quadrature', () => {
   it('integrates using trapz, simpson and adaptive quad', () => {
-    // Integral de sin(x) de 0 a pi = -cos(pi) - (-cos(0)) = 1 - (-1) = 2.0
+    // Integral of sin(x) from 0 to pi = -cos(pi) - (-cos(0)) = 1 - (-1) = 2.0.
     const n = 101;
     const xs = new Float64Array(n);
     const ys = new Float64Array(n);
@@ -98,13 +98,13 @@ describe('ix / integrate / numerical quadrature', () => {
     const sRes = simpson(ys, xs);
     expect(sRes).toBeCloseTo(2.0, 5);
 
-    // Cuadratura adaptativa continua
+    // Continuous adaptive quadrature.
     const qRes = quad((x) => Math.sin(x), 0, Math.PI);
     expect(qRes).toBeCloseTo(2.0, 6);
   });
 
   it('computes cumulative integration', () => {
-    // aceleración constante a = 2 -> velocidad v(t) = 2t -> en t=2, v=4
+    // Constant acceleration a = 2 -> velocity v(t) = 2t -> at t=2, v=4.
     const a = new NDArray(new Float64Array([2, 2, 2]), { shape: [3] });
     const x = new NDArray(new Float64Array([0, 1, 2]), { shape: [3] });
     const v = cumulativeIntegrate(a, x);
@@ -130,7 +130,7 @@ describe('ix / interpolate / 1D & Splines', () => {
     const y = [0, 1, 8, 27]; // y = x^3
     const spline = cubicSpline(x, y);
 
-    // Evaluar en punto intermedio x = 1.5
+    // Evaluate at the intermediate point x = 1.5.
     const val = spline(1.5);
     expect(val).toBeCloseTo(3.15, 1);
   });
@@ -138,7 +138,7 @@ describe('ix / interpolate / 1D & Splines', () => {
 
 describe('ix / optimize / minimize & curveFit', () => {
   it('minimizes 1D scalar function with fminbnd', () => {
-    // f(x) = (x - 3)^2 + 5  -> mínimo en x = 3, f(x) = 5
+    // f(x) = (x - 3)^2 + 5 -> minimum at x = 3, f(x) = 5.
     const res = fminbnd((x) => (x - 3) ** 2 + 5, [0, 10]);
     expect(res.converged).toBe(true);
     expect(res.x).toBeCloseTo(3.0, 5);
@@ -146,7 +146,7 @@ describe('ix / optimize / minimize & curveFit', () => {
   });
 
   it('minimizes multivariable function with nelderMead', () => {
-    // Parábola 2D: f(x, y) = (x - 2)^2 + (y + 4)^2
+    // 2D parabola: f(x, y) = (x - 2)^2 + (y + 4)^2.
     const f = (v: NDArray) => (v.get(0) - 2) ** 2 + (v.get(1) + 4) ** 2;
     const res = nelderMead(f, [0, 0]);
 
@@ -156,7 +156,7 @@ describe('ix / optimize / minimize & curveFit', () => {
   });
 
   it('calibrates models with curveFit', () => {
-    // Modelo lineal y = a * x + b con a = 2.5, b = 1.0
+    // Linear model y = a * x + b with a = 2.5 and b = 1.0.
     const x = [1, 2, 3, 4];
     const y = [3.5, 6.0, 8.5, 11.0];
     const model = (xi: number, p: NDArray) => p.get(0) * xi + p.get(1);
@@ -239,32 +239,32 @@ describe('ix / ai / helpers & prompts', () => {
 
 describe('ix / units & constants / offsets & custom units', () => {
   it('handles relative thermal scales with offset (Celsius <-> Fahrenheit <-> Kelvin)', () => {
-    // 0 °C = 273.15 K
+    // 0 °C = 273.15 K.
     const t0C = qty(0, celsius);
     expect(t0C.to(kelvin)).toBeCloseTo(273.15, 2);
 
-    // 100 °C = 212 °F
+    // 100 °C = 212 °F.
     const t100C = qty(100, celsius);
     expect(t100C.to(fahrenheit)).toBeCloseTo(212.0, 2);
 
-    // 68 °F = 20 °C
+    // 68 °F = 20 °C.
     const t68F = qty(68, fahrenheit);
     expect(t68F.to(celsius)).toBeCloseTo(20.0, 2);
   });
 
   it('allows registering, removing and resetting user-defined units', () => {
-    // Definir unidad personalizada "parsec" = 3.0857e16 metros
+    // Define the custom unit "parsec" as 3.0857e16 meters.
     const parsecQty = qty(3.0857e16, meter);
-    units.defineUnit('parsec', 'pc', parsecQty, 'Distancia astronómica parsec');
+    units.defineUnit('parsec', 'pc', parsecQty, 'Astronomical distance unit parsec');
 
     const pcUnit = units.get('pc');
     expect(pcUnit).toBeDefined();
 
-    // Eliminar unidad personalizada
+    // Remove the custom unit.
     expect(units.removeUnit('pc')).toBe(true);
     expect(units.get('pc')).toBeUndefined();
 
-    // Resetear
+    // Reset the registry.
     units.defineUnit('furlong', 'fur', qty(201.168, meter));
     units.reset();
     expect(units.get('fur')).toBeUndefined();

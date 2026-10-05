@@ -17,8 +17,8 @@ import { addInPlace, mulInPlace } from '../../src/ix/memory/in-place.js';
 
 describe('ix / ode / solvers (rk4 & ode45)', () => {
   it('solves simple exponential decay dy/dt = -y with rk4', () => {
-    // Solución analítica: y(t) = y0 * exp(-t)
-    // Para t=1, y0=1 -> y(1) = 1/e ≈ 0.367879
+    // Analytical solution: y(t) = y0 * exp(-t).
+    // At t=1, y0=1 -> y(1) = 1/e ≈ 0.367879.
     const f = (t: number, y: NDArray) => {
       return new NDArray(new Float64Array([-y.data[0]]), { shape: [1] });
     };
@@ -32,8 +32,8 @@ describe('ix / ode / solvers (rk4 & ode45)', () => {
 
   it('solves harmonic oscillator with adaptive ode45 (Dormand-Prince)', () => {
     // y'' + y = 0  =>  y1' = y2, y2' = -y1
-    // Con y(0) = 0, y'(0) = 1  => Solución analítica y(t) = sin(t)
-    // A t = pi/2 ≈ 1.570796, y(pi/2) = 1.0, y'(pi/2) = 0.0
+    // With y(0) = 0, y'(0) = 1 => analytical solution y(t) = sin(t).
+    // At t = pi/2 ≈ 1.570796, y(pi/2) = 1.0, y'(pi/2) = 0.0.
     const f = (t: number, y: NDArray) => {
       const y1 = y.data[0];
       const y2 = y.data[1];
@@ -64,7 +64,7 @@ describe('ix / ode / solvers (rk4 & ode45)', () => {
 
 describe('ix / optimize / root finding (fzero & fsolve)', () => {
   it('finds scalar roots with fzero (Brent)', () => {
-    // f(x) = x^2 - 2  => raíz en sqrt(2) ≈ 1.41421356
+    // f(x) = x^2 - 2 => root at sqrt(2) ≈ 1.41421356.
     const res = fzero((x) => x * x - 2, [1, 2]);
     expect(res.converged).toBe(true);
     expect(res.root).toBeCloseTo(Math.SQRT2, 8);
@@ -76,10 +76,10 @@ describe('ix / optimize / root finding (fzero & fsolve)', () => {
   });
 
   it('solves non-linear systems F(x) = 0 with fsolve (Newton-Raphson)', () => {
-    // Sistema:
-    // f1(x1, x2) = x1^2 + x2^2 - 1  (círculo unitario)
-    // f2(x1, x2) = x1 - x2          (diagonal)
-    // Solución positiva: x1 = x2 = 1/sqrt(2) ≈ 0.7071
+    // System:
+    // f1(x1, x2) = x1^2 + x2^2 - 1 (unit circle)
+    // f2(x1, x2) = x1 - x2 (diagonal)
+    // Positive solution: x1 = x2 = 1/sqrt(2) ≈ 0.7071.
     const F = (x: NDArray) => {
       const x1 = x.data[0];
       const x2 = x.data[1];
@@ -115,13 +115,13 @@ describe('ix / units / physical quantities & dimensional analysis', () => {
     const sum = d1.add(d2);
     expect(sum.value).toBe(8);
 
-    // Sumar longitud con tiempo debe arrojar TypeError
+    // Adding a length to a duration should throw a TypeError.
     const t = qty(10, second);
     expect(() => d1.add(t)).toThrowError(/Dimensional mismatch/);
   });
 
   it('combines dimensions algebraically on multiplication and division', () => {
-    // Fuerza = masa * aceleración = kg * (m / s^2) = N
+    // Force = mass * acceleration = kg * (m / s^2) = N.
     const mass = qty(10, kilogram);
     const accel = qty(9.8, meter).div(qty(1, second).pow(2));
     const force = mass.mul(accel);
@@ -131,7 +131,7 @@ describe('ix / units / physical quantities & dimensional analysis', () => {
     expect(force.dims.s).toBe(-2);
     expect(force.to(newton)).toBeCloseTo(98.0, 5);
 
-    // Energía / Trabajo = Fuerza * Distancia = Joules
+    // Energy / work = force * distance = joules.
     const dist = qty(2, meter);
     const work = force.mul(dist);
     expect(work.to(joule)).toBeCloseTo(196.0, 5);
@@ -140,7 +140,7 @@ describe('ix / units / physical quantities & dimensional analysis', () => {
   it('converts units transparently (km/h <-> m/s)', () => {
     const speedKmh = qty(72, kilometer).div(qty(1, hour));
     const speedMs = speedKmh.to(meter.div(second));
-    // 72 km/h = 20 m/s
+    // 72 km/h = 20 m/s.
     expect(speedMs).toBeCloseTo(20.0, 5);
   });
 });
@@ -154,7 +154,7 @@ describe('ix / memory / in-place ops (!)', () => {
     addInPlace(out, a, b);
     expect(Array.from(out.data)).toEqual([11, 22, 33]);
 
-    // Reutilizar 'out' para multiplicar por un escalar in-place
+    // Reuse 'out' for in-place multiplication by a scalar.
     mulInPlace(out, out, 2);
     expect(Array.from(out.data)).toEqual([22, 44, 66]);
   });
