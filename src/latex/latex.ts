@@ -75,7 +75,7 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
         return node.statements.map(render).join(' \\\\ ');
 
       case 'ASSIGNMENT':
-        return `${node.name} = ${render(node.value)}`;
+        return `${render(node.target)} = ${render(node.value)}`;
 
       case 'FUNCTION_DECLARATION':
         return `\\operatorname{function}\\ ${node.name}\\left(${node.params.map((param) =>
@@ -108,6 +108,9 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
       case 'NUMBER':
         return String(node.value);
 
+      case 'STRING':
+        return `\\text{${node.value}}`;
+
       case 'VARIABLE':
         if (['alpha', 'beta', 'theta', 'omega', 'pi', 'lambda'].includes(node.name)) {
           return `\\${node.name}`;
@@ -132,6 +135,9 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
 
       case 'INDEX':
         return `${render(node.target)}_{${node.indices.map(render).join(', ')}}`;
+
+      case 'MEMBER':
+        return `${render(node.target)}.${node.property}`;
 
       case 'COLON_ALL':
         return ':';

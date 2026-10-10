@@ -34,7 +34,7 @@ import { nanmean, nansum, nanstd } from '../stats/series-ops.js';
 export interface Token {
   type:
     | 'NUMBER' | 'IDENTIFIER' | 'OPERATOR' | 'LPAREN' | 'RPAREN' | 'COMMA'
-    | 'LBRACKET' | 'RBRACKET' | 'LBRACE' | 'RBRACE' | 'SEMICOLON' | 'COLON' | 'NEWLINE';
+    | 'STRING' | 'LBRACKET' | 'RBRACKET' | 'LBRACE' | 'RBRACE' | 'SEMICOLON' | 'COLON' | 'DOT' | 'NEWLINE';
   value: string;
   /** Whitespace precedes this token; it separates elements inside `[...]`. */
   spaceBefore?: boolean;
@@ -47,6 +47,7 @@ export interface Token {
 
 export type ASTNode =
   | { type: 'NUMBER'; value: number }
+  | { type: 'STRING'; value: string }
   | { type: 'VARIABLE'; name: string }
   | { type: 'BINARY_OP'; op: string; left: ASTNode; right: ASTNode }
   | { type: 'UNARY_OP'; op: string; expr: ASTNode }
@@ -55,10 +56,11 @@ export type ASTNode =
   | { type: 'MATRIX'; rows: ASTNode[][]; commaSeparated: boolean }
   | { type: 'RANGE'; start: ASTNode; step?: ASTNode; stop: ASTNode }
   | { type: 'INDEX'; target: ASTNode; indices: ASTNode[] }
+  | { type: 'MEMBER'; target: ASTNode; property: string }
   | { type: 'COLON_ALL' }
   | { type: 'OBJECT'; properties: { key: string; value: ASTNode }[] }
   | { type: 'PROGRAM'; statements: ASTNode[] }
-  | { type: 'ASSIGNMENT'; name: string; value: ASTNode }
+  | { type: 'ASSIGNMENT'; target: ASTNode; value: ASTNode }
   | { type: 'FUNCTION_DECLARATION'; name: string; params: { name: string; defaultValue?: ASTNode }[]; body: ASTNode[] }
   | { type: 'IF'; branches: { condition: ASTNode; body: ASTNode[] }[]; elseBody?: ASTNode[] }
   | { type: 'WHILE'; condition: ASTNode; body: ASTNode[] }
@@ -136,6 +138,37 @@ export function tokenize(expr: string): Token[] {
       continue;
     }
 
+    const previous = tokens[tokens.length - 1];
+    const canStartSingleQuotedString = !previous ||
+      previous.type === 'LPAREN' ||
+      previous.type === 'LBRACKET' ||
+      previous.type === 'LBRACE' ||
+      previous.type === 'COMMA' ||
+      previous.type === 'COLON' ||
+      previous.type === 'SEMICOLON' ||
+      previous.type === 'NEWLINE' ||
+      (previous.type === 'OPERATOR' && previous.value !== "'");
+    if (ch === '"' || (ch === "'" && canStartSingleQuotedString)) {
+      const quote = ch;
+      i++;
+      let value = '';
+      while (i < len && expr[i] !== quote) {
+        if (expr[i] === '\\') {
+          i++;
+          if (i >= len) throw syntaxErrorAt(expr, tokenStart, 'Unterminated string literal');
+          const escaped = expr[i++];
+          const escapes: Record<string, string> = { n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"', "'": "'" };
+          value += escapes[escaped] ?? escaped;
+        } else {
+          value += expr[i++];
+        }
+      }
+      if (i >= len) throw syntaxErrorAt(expr, tokenStart, 'Unterminated string literal');
+      i++;
+      push({ type: 'STRING', value });
+      continue;
+    }
+
     if (/\d/.test(ch) || (ch === '.' && /\d/.test(expr[i + 1] || ''))) {
       let numStr = '';
       while (i < len) {
@@ -199,6 +232,12 @@ export function tokenize(expr: string): Token[] {
     if (ch === '.' && ['*', '/', '^', '+', '-'].includes(expr[i + 1])) {
       push({ type: 'OPERATOR', value: '.' + expr[i + 1] });
       i += 2;
+      continue;
+    }
+
+    if (ch === '.' && /[a-zA-Z_]/.test(expr[i + 1] || '')) {
+      push({ type: 'DOT', value: '.' });
+      i++;
       continue;
     }
 
@@ -398,6 +437,12 @@ export function parseExpression(expr: string): ASTNode {
         node = { type: 'POSTFIX_OP', op: "'", expr: node };
       } else if (t?.type === 'LBRACKET' && !t.spaceBefore) {
         node = parseIndex(node);
+      } else if (t?.type === 'DOT') {
+        pos++;
+        const property = tokens[pos];
+        if (property?.type !== 'IDENTIFIER') throw syntaxError('Expected property name after "."');
+        pos++;
+        node = { type: 'MEMBER', target: node, property: property.value };
       } else {
         return node;
       }
@@ -411,6 +456,11 @@ export function parseExpression(expr: string): ASTNode {
     if (token.type === 'NUMBER') {
       pos++;
       return { type: 'NUMBER', value: parseFloat(token.value) };
+    }
+
+    if (token.type === 'STRING') {
+      pos++;
+      return { type: 'STRING', value: token.value };
     }
 
     if (token.type === 'IDENTIFIER') {
@@ -598,12 +648,16 @@ export function parseExpression(expr: string): ASTNode {
         pos++;
         return { type: token.value === 'break' ? 'BREAK' : 'CONTINUE' };
       }
-      if (tokens[pos + 1]?.type === 'OPERATOR' && tokens[pos + 1].value === '=') {
-        pos += 2;
-        return { type: 'ASSIGNMENT', name: token.value, value: parseRange() };
-      }
     }
-    return parseRange();
+    const target = parseRange();
+    if (tokens[pos]?.type === 'OPERATOR' && tokens[pos].value === '=') {
+      if (target.type !== 'VARIABLE' && target.type !== 'MEMBER' && target.type !== 'INDEX') {
+        throw syntaxError('Assignment target must be a variable or object property');
+      }
+      pos++;
+      return { type: 'ASSIGNMENT', target, value: parseRange() };
+    }
+    return target;
   }
 
   function parseStatements(stopWords: Set<string>): ASTNode[] {
@@ -848,6 +902,27 @@ function conditionValue(value: unknown): boolean {
   throw new TypeError('Flow-control conditions must evaluate to a number or boolean');
 }
 
+function objectValue(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || isArrayLike(value)) {
+    throw new TypeError('Property access is only defined for objects');
+  }
+  return value as Record<string, unknown>;
+}
+
+function getObjectProperty(target: unknown, property: string): unknown {
+  const object = objectValue(target);
+  if (!Object.hasOwn(object, property)) {
+    throw new ReferenceError(`Object has no property "${property}"`);
+  }
+  return object[property];
+}
+
+function setObjectProperty(target: unknown, property: string, value: unknown): unknown {
+  const object = objectValue(target);
+  object[property] = value;
+  return value;
+}
+
 function evaluateStatements(statements: ASTNode[], scope: Record<string, any>): unknown {
   let result: unknown;
   for (const statement of statements) result = evaluateAST(statement, scope);
@@ -866,7 +941,24 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
 
     case 'ASSIGNMENT': {
       const value = evaluateAST(ast.value, scope);
-      scope[ast.name] = value;
+      if (ast.target.type === 'VARIABLE') {
+        scope[ast.target.name] = value;
+      } else if (ast.target.type === 'MEMBER') {
+        setObjectProperty(evaluateAST(ast.target.target, scope), ast.target.property, value);
+      } else {
+        if (ast.target.type !== 'INDEX') {
+          throw new TypeError('Assignment target must be a variable or object property');
+        }
+        const target = evaluateAST(ast.target.target, scope);
+        if (ast.target.indices.length !== 1) {
+          throw new TypeError('Object property assignment requires exactly one key');
+        }
+        const property = evaluateAST(ast.target.indices[0], scope);
+        if (typeof property !== 'string') {
+          throw new TypeError('Object property keys must be strings');
+        }
+        setObjectProperty(target, property, value);
+      }
       return value;
     }
 
@@ -953,6 +1045,9 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
     case 'NUMBER':
       return ast.value;
 
+    case 'STRING':
+      return ast.value;
+
     case 'VARIABLE': {
       if (ast.name in scope) {
         return scope[ast.name];
@@ -1000,7 +1095,12 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
 
     case 'INDEX': {
       const target = evaluateAST(ast.target, scope);
-      if (!isArrayLike(target)) throw new TypeError('Only arrays can be indexed');
+      if (!isArrayLike(target)) {
+        if (ast.indices.length !== 1) throw new TypeError('Object property access requires exactly one key');
+        const property = evaluateAST(ast.indices[0], scope);
+        if (typeof property !== 'string') throw new TypeError('Object property keys must be strings');
+        return getObjectProperty(target, property);
+      }
       const shape = toNDArray(target).shape;
       const indices: AxisIndex[] = ast.indices.map((node, d) => {
         if (node.type === 'COLON_ALL') return ':';
@@ -1011,6 +1111,9 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
       });
       return indexOneBased(target, indices);
     }
+
+    case 'MEMBER':
+      return getObjectProperty(evaluateAST(ast.target, scope), ast.property);
 
     case 'POSTFIX_OP':
       return ctranspose(evaluateAST(ast.expr, scope));

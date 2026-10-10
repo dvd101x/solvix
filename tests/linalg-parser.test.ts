@@ -263,4 +263,18 @@ second = scale(3, 4)
     expect(() => evaluate('function duplicate(x, x)\n  x\nend')).toThrow(/Duplicate parameter/);
     expect(() => evaluate('{ value 1 }', { value: 1 })).toThrow(/Expected "," or "}"/);
   });
+
+  it('reads and writes object properties with dot and string-key syntax', () => {
+    const program = `
+config = { name: "solver", limit: 3 }
+config.limit = config.limit + 2
+config['name'] = 'updated solver'
+{ name: config.name, limit: config["limit"] }
+`;
+    expect(evaluate(program)).toEqual({ name: 'updated solver', limit: 5 });
+    expect(evaluate('"line\\nfeed"')).toBe('line\nfeed');
+    expect(() => evaluate('{ value: 1 }.missing')).toThrow(/has no property "missing"/);
+    expect(() => evaluate('[1, 2]["value"]')).toThrow(/Only arrays can be indexed|[Ii]ndices/);
+    expect(() => evaluate('value["missing"]', { value: 3 })).toThrow(/only defined for objects/);
+  });
 });

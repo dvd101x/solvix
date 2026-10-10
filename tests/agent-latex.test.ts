@@ -68,6 +68,7 @@ describe('ix / latex / Wikipedia & paper formulas translation', () => {
     expect(flowLatex).toContain('\\operatorname{for}');
     expect(flowLatex).toContain('\\operatorname{continue}');
     expect(toLaTeX('{ key, doubled: key * 2 }')).toContain('\\left\\{key: key');
+    expect(toLaTeX('config.name = "solver"')).toContain('config.name = \\text{solver}');
   });
 });
 

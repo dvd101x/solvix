@@ -295,7 +295,17 @@ end
 
 Object literals use identifier keys and support property shorthand: `{key}` is equivalent to
 `{key: key}`, while `{key: expression}` assigns an explicit value. Object properties are separated
-with commas.
+with commas. Use double or single quoted strings for property values, access properties with `object.key`
+or `object["key"]`, and update them with the same forms:
+
+```typescript
+const config = evaluate(`
+config = { name: "solver", limit: 3 }
+config.limit = config.limit + 2
+config['name'] = 'updated solver'
+{ name: config.name, limit: config["limit"] }
+`); // { name: 'updated solver', limit: 5 }
+```
 
 The built-in array registry includes `sum`, `prod`, `mean`, `variance`, `std`, `median`, `min`, `max`,
 `argmin`, `argmax`, `all`, `any`, `countNonzero`, `quantile`, `percentile`, `nansum`, `nanmean`,
