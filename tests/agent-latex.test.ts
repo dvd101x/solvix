@@ -63,6 +63,11 @@ describe('ix / latex / Wikipedia & paper formulas translation', () => {
     const programLatex = toLaTeX('function twice(x); return x * 2; end; twice(3)');
     expect(programLatex).toContain('\\operatorname{function}');
     expect(programLatex).toContain('\\operatorname{return}');
+
+    const flowLatex = toLaTeX('for i in 1:3; if i == 2; continue; end; end');
+    expect(flowLatex).toContain('\\operatorname{for}');
+    expect(flowLatex).toContain('\\operatorname{continue}');
+    expect(toLaTeX('{ key, doubled: key * 2 }')).toContain('\\left\\{key: key');
   });
 });
 

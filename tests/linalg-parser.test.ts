@@ -217,4 +217,50 @@ fibonacci(4)
     expect(() => evaluate('for i = 3\n  i\nend')).toThrow(/iterable must be an array or range/);
     expect(() => evaluate('if [1]\n  1\nend')).toThrow(/conditions must evaluate/);
   });
+
+  it('supports break, continue and Julia-style for-in loops', () => {
+    const program = `
+total = 0
+for i in 1:10
+  if i == 6
+    break
+  elseif i % 2 == 0
+    continue
+  end
+  total = total + i
+end
+total
+`;
+    expect(evaluate(program)).toBe(9);
+    expect(evaluate(`
+count = 0
+for outer in 1:2
+  for inner in 1:3
+    if inner == 2
+      break
+    end
+    count = count + 1
+  end
+end
+count
+`)).toBe(2);
+    expect(() => evaluate('break')).toThrow(/inside a loop/);
+    expect(() => evaluate('continue')).toThrow(/inside a loop/);
+  });
+
+  it('supports function default values and object literals with shorthand properties', () => {
+    const program = `
+function scale(value, factor = 2, offset = factor + 1)
+  value * factor + offset
+end
+first = scale(3)
+second = scale(3, 4)
+{ first, second, total: first + second }
+`;
+    expect(evaluate(program)).toEqual({ first: 9, second: 17, total: 26 });
+    expect(evaluate('{ key, doubled: key * 2 }', { key: 5 })).toEqual({ key: 5, doubled: 10 });
+    expect(() => evaluate('function invalid(optional = 1, required)\n  required\nend')).toThrow(/Required parameters/);
+    expect(() => evaluate('function duplicate(x, x)\n  x\nend')).toThrow(/Duplicate parameter/);
+    expect(() => evaluate('{ value 1 }', { value: 1 })).toThrow(/Expected "," or "}"/);
+  });
 });

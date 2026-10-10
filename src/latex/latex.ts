@@ -78,7 +78,9 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
         return `${node.name} = ${render(node.value)}`;
 
       case 'FUNCTION_DECLARATION':
-        return `\\operatorname{function}\\ ${node.name}\\left(${node.params.join(', ')}\\right)\\;${node.body.map(render).join('; ')}\\;\\operatorname{end}`;
+        return `\\operatorname{function}\\ ${node.name}\\left(${node.params.map((param) =>
+          param.defaultValue ? `${param.name} = ${render(param.defaultValue)}` : param.name
+        ).join(', ')}\\right)\\;${node.body.map(render).join('; ')}\\;\\operatorname{end}`;
 
       case 'IF': {
         const branches = node.branches.map(({ condition, body }) =>
@@ -97,6 +99,12 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
       case 'RETURN':
         return node.value ? `\\operatorname{return}\\ ${render(node.value)}` : '\\operatorname{return}';
 
+      case 'BREAK':
+        return '\\operatorname{break}';
+
+      case 'CONTINUE':
+        return '\\operatorname{continue}';
+
       case 'NUMBER':
         return String(node.value);
 
@@ -113,6 +121,9 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
         const body = node.rows.map((row) => row.map(render).join(' & ')).join(' \\\\ ');
         return `\\begin{bmatrix} ${body} \\end{bmatrix}`;
       }
+
+      case 'OBJECT':
+        return `\\left\\{${node.properties.map(({ key, value }) => `${key}: ${render(value)}`).join(', ')}\\right\\}`;
 
       case 'RANGE':
         return node.step

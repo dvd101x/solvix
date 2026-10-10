@@ -268,9 +268,34 @@ end
 ```
 
 Conditions accept real numbers and booleans, with `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||` and `!`.
-Function parameters and assignments made inside functions are local; a function without `return` yields
-the value of its final statement. `for` iterates over arrays and ranges. `while` loops are capped at
-1,000,000 iterations and throw a `RangeError` when the limit is exceeded.
+Function parameters can have defaults, and assignments made inside functions are local; a function without
+`return` yields the value of its final statement. `for` accepts both `for item = iterable` and
+`for item in iterable`. `break` exits the innermost loop and `continue` starts its next iteration.
+`while` loops are capped at 1,000,000 iterations and throw a `RangeError` when the limit is exceeded.
+
+```typescript
+const result = evaluate(`
+function scale(value, factor = 2, offset = factor + 1)
+  value * factor + offset
+end
+
+total = 0
+for value in 1:10
+  if value == 6
+    break
+  elseif value % 2 == 0
+    continue
+  end
+  total = total + scale(value)
+end
+
+{ total, firstValue: scale(1) }
+`); // { total: 27, firstValue: 5 }
+```
+
+Object literals use identifier keys and support property shorthand: `{key}` is equivalent to
+`{key: key}`, while `{key: expression}` assigns an explicit value. Object properties are separated
+with commas.
 
 The built-in array registry includes `sum`, `prod`, `mean`, `variance`, `std`, `median`, `min`, `max`,
 `argmin`, `argmax`, `all`, `any`, `countNonzero`, `quantile`, `percentile`, `nansum`, `nanmean`,
