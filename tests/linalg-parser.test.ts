@@ -191,4 +191,30 @@ sum
     expect(evaluate(program)).toBe(25);
     expect(evaluate('if !(2 > 3) || false; 7; else; 9; end')).toBe(7);
   });
+
+  it('supports recursive functions, local scope and compiled programs', () => {
+    const scope: Record<string, unknown> = { offset: 2 };
+    const program = `
+function fibonacci(n)
+  if n <= 1
+    return n
+  end
+  temporary = fibonacci(n - 1) + fibonacci(n - 2)
+  temporary + offset
+end
+fibonacci(4)
+`;
+    expect(evaluate(program, scope)).toBe(15);
+    expect(scope).not.toHaveProperty('temporary');
+
+    const compiled = compile('function increment(x); x + 1; end; increment(value)');
+    expect(compiled({ value: 4 })).toBe(5);
+  });
+
+  it('validates flow-control contracts and malformed blocks', () => {
+    expect(() => evaluate('function f(x)\n  x + 1')).toThrow(/Expected "end" for function f/);
+    expect(() => evaluate('function f(x)\n  x\nend\nf()')).toThrow(/expects 1 arguments, got 0/);
+    expect(() => evaluate('for i = 3\n  i\nend')).toThrow(/iterable must be an array or range/);
+    expect(() => evaluate('if [1]\n  1\nend')).toThrow(/conditions must evaluate/);
+  });
 });

@@ -59,6 +59,10 @@ describe('ix / latex / Wikipedia & paper formulas translation', () => {
     const latexStr = toLaTeX('x / y + sqrt(z)');
     expect(latexStr).toContain('\\frac{x}{y}');
     expect(latexStr).toContain('\\sqrt{z}');
+
+    const programLatex = toLaTeX('function twice(x); return x * 2; end; twice(3)');
+    expect(programLatex).toContain('\\operatorname{function}');
+    expect(programLatex).toContain('\\operatorname{return}');
   });
 });
 

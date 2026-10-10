@@ -236,10 +236,11 @@ const magnitude = evaluate('hypot(3, 4) + log10(100)'); // 7
 const columnSums = evaluate('sum(A, 1)', { A: [[1, 2], [3, 4]] }); // [4, 6]
 const total = evaluate('sum(A, [1, 2])', { A: [[1, 2], [3, 4]] }); // [10]
 const runningRows = evaluate('cumsum(A, 2)', { A: [[1, 2], [3, 4]] }); // [[1, 3], [3, 7]]
+```
 
 Syntax errors include the source line, column and a caret pointing at the invalid token.
 
-The parser also supports Julia-style programs with functions, local assignments and flow control:
+The parser supports Julia-style programs with functions, local assignments and flow control:
 
 ```typescript
 const factorial = evaluate(`
@@ -267,8 +268,16 @@ end
 ```
 
 Conditions accept real numbers and booleans, with `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||` and `!`.
-`while` loops are capped at 1,000,000 iterations and throw a `RangeError` when the limit is exceeded.
+Function parameters and assignments made inside functions are local; a function without `return` yields
+the value of its final statement. `for` iterates over arrays and ranges. `while` loops are capped at
+1,000,000 iterations and throw a `RangeError` when the limit is exceeded.
 
+The built-in array registry includes `sum`, `prod`, `mean`, `variance`, `std`, `median`, `min`, `max`,
+`argmin`, `argmax`, `all`, `any`, `countNonzero`, `quantile`, `percentile`, `nansum`, `nanmean`,
+`nanstd`, `cumsum`, `cumprod`, `cummin`, and `cummax`. Reduction and cumulative dimensions in parser
+expressions are Julia-style 1-based integers; use `[1, 2]` for multiple dimensions.
+
+```typescript
 // Compile a reusable high-performance function
 const kineticEnergy = compile('0.5 * m * v^2');
 console.log(kineticEnergy({ m: 10, v: 20 })); // 2000
