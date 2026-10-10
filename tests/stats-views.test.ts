@@ -25,6 +25,8 @@ import {
   mean,
   min,
   max,
+  argmin,
+  argmax,
   std,
   variance,
   median,
@@ -163,6 +165,25 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(Array.from((sum(values, { axis: [0, 1, 2] }) as NDArray).data)).toEqual([36]);
     expect(() => sum(values, { axis: [0, 0] })).toThrow(/more than once/);
     expect(() => sum(values, { axis: [] })).toThrow(/at least one/);
+  });
+
+  it('finds first extrema indices globally and across axes', () => {
+    const values = NDArray.fromArray([
+      [[8, 3], [4, 3]],
+      [[7, 1], [1, 9]],
+    ]);
+
+    expect(argmin(values)).toBe(5);
+    expect(argmax(values)).toBe(7);
+    expect(Array.from((argmin(values, { axis: 0 }) as NDArray).data)).toEqual([1, 1, 1, 0]);
+    expect(Array.from((argmax(values, { axis: 1 }) as NDArray).data)).toEqual([0, 0, 0, 1]);
+    expect(Array.from((argmin(values, { axis: [0, 2] }) as NDArray).data)).toEqual([3, 2]);
+    expect(Array.from((argmax(values, { axis: [-3, -1], keepdims: true }) as NDArray).shape)).toEqual([1, 2, 1]);
+    expect(Array.from((argmax(values, { axis: [-3, -1], keepdims: true }) as NDArray).data)).toEqual([0, 3]);
+    expect(argmin(NDArray.fromArray([2, NaN, 1]))).toBe(1);
+    expect(argmax(NDArray.fromArray([2, NaN, 3]))).toBe(1);
+    expect(argmin(NDArray.fromArray([3, 1, 1]).withUnit(meter))).toBe(1);
+    expect(() => argmin(NDArray.zeros([0]))).toThrow(/empty reductions/);
   });
 
   it('performs cumulative scans globally and along positive or negative axes', () => {

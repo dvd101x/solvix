@@ -24,6 +24,8 @@ const unary: [string, (a: any) => any][] = [
   ['mean', (a) => S.mean(a)],
   ['min', (a) => S.min(a)],
   ['max', (a) => S.max(a)],
+  ['argmin', (a) => S.argmin(a)],
+  ['argmax', (a) => S.argmax(a)],
   ['median', (a) => S.median(a)],
   ['std', (a) => S.std(a)],
   ['variance', (a) => S.variance(a)],

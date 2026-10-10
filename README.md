@@ -386,7 +386,7 @@ Global and axis-based (`axis`) reductions support degrees-of-freedom correction 
 
 ```typescript
 import {
-  NDArray, sum, mean, std, variance, median, quantile, percentile, sumProduct, describe,
+  NDArray, sum, mean, std, variance, median, quantile, percentile, argmin, argmax, sumProduct, describe,
   cumsum, cumprod, cummin, cummax
 } from 'solvix';
 
@@ -397,6 +397,8 @@ const M = new NDArray(new Float64Array([1, 2, 3, 4, 5, 6]), { shape: [2, 3] });
 const colSum = sum(M, { axis: 0 }); // [5, 7, 9] (sum across rows)
 const rowMean = mean(M, { axis: 1 }); // [2, 5] (mean per row)
 const devStd = std(M, { axis: 0, ddof: 1 }); // Sample standard deviation
+const lowest = argmin(M); // 0; index in flattened iteration order
+const rowHighest = argmax(M, { axis: 1 }); // [2, 2]; first maximum index in each row
 const total = sum(M, { axis: [0, 1] }); // [21]; reduce several axes at once
 const keepRowAndColumnDims = sum(M, { axis: [0, 1], keepdims: true }); // [[21]]
 const partialSums = cumsum(M, { axis: 1 }); // [[1, 3, 6], [4, 9, 15]]
@@ -439,6 +441,9 @@ console.log(stats);
 //   kurtosis: -1.2 // Excess kurtosis
 // }
 ```
+
+`argmin` and `argmax` return the first matching zero-based index. With multiple
+axes, the index is flattened in the same order as the supplied `axis` list.
 
 ---
 

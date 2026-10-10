@@ -109,6 +109,24 @@ function maxValue(values: number[]): number {
   return result;
 }
 
+function argExtreme(values: number[], comparison: (candidate: number, current: number) => boolean): number {
+  if (values.length === 0) {
+    throw new RangeError('argmin and argmax are undefined for empty reductions');
+  }
+  let index = 0;
+  for (let i = 1; i < values.length; i++) {
+    if (Number.isNaN(values[index])) {
+      break;
+    }
+    if (Number.isNaN(values[i])) {
+      index = i;
+    } else if (comparison(values[i], values[index])) {
+      index = i;
+    }
+  }
+  return index;
+}
+
 /**
  * Función genérica de reducción multidimensional por eje.
  */
@@ -135,6 +153,18 @@ function reduceAxis(
   return keepUnit && arr.unit
     ? new NDArray(result.data, { shape: result.shape, unit: arr.unit })
     : result;
+}
+
+function reduceIndexAxis(
+  arr: NDArray,
+  axis: Axis | undefined,
+  keepdims: boolean,
+  reducer: (values: number[]) => number,
+): NDArray | number {
+  if (arr.isComplex) {
+    throw new TypeError('argmin and argmax are not defined for complex arrays');
+  }
+  return reduceTensorAxis(arr, axis, keepdims, reducer);
 }
 
 // --- Operaciones de Reducción ---
@@ -251,6 +281,18 @@ export function min(arr: NDArray, opts: ReductionOptions = {}): NDArray | number
 
 export function max(arr: NDArray, opts: ReductionOptions = {}): NDArray | number | Quantity {
   return reduceAxis(arr, opts.axis, opts.keepdims ?? false, maxValue, true);
+}
+
+export function argmin(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
+  return reduceIndexAxis(arr, opts.axis, opts.keepdims ?? false, (values) =>
+    argExtreme(values, (candidate, current) => candidate < current)
+  );
+}
+
+export function argmax(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
+  return reduceIndexAxis(arr, opts.axis, opts.keepdims ?? false, (values) =>
+    argExtreme(values, (candidate, current) => candidate > current)
+  );
 }
 
 export function variance(arr: NDArray, opts: ReductionOptions = {}): NDArray | number {
