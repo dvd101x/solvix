@@ -71,6 +71,32 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
 
   function render(node: ASTNode): string {
     switch (node.type) {
+      case 'PROGRAM':
+        return node.statements.map(render).join(' \\\\ ');
+
+      case 'ASSIGNMENT':
+        return `${node.name} = ${render(node.value)}`;
+
+      case 'FUNCTION_DECLARATION':
+        return `\\operatorname{function}\\ ${node.name}\\left(${node.params.join(', ')}\\right)\\;${node.body.map(render).join('; ')}\\;\\operatorname{end}`;
+
+      case 'IF': {
+        const branches = node.branches.map(({ condition, body }) =>
+          `${render(condition)} & ${body.map(render).join('; ')}`
+        );
+        if (node.elseBody) branches.push(`\\text{otherwise} & ${node.elseBody.map(render).join('; ')}`);
+        return `\\begin{cases} ${branches.join(' \\\\ ')} \\end{cases}`;
+      }
+
+      case 'WHILE':
+        return `\\operatorname{while}\\ ${render(node.condition)}\\;${node.body.map(render).join('; ')}\\;\\operatorname{end}`;
+
+      case 'FOR':
+        return `\\operatorname{for}\\ ${node.variable} = ${render(node.iterable)}\\;${node.body.map(render).join('; ')}\\;\\operatorname{end}`;
+
+      case 'RETURN':
+        return node.value ? `\\operatorname{return}\\ ${render(node.value)}` : '\\operatorname{return}';
+
       case 'NUMBER':
         return String(node.value);
 
@@ -81,7 +107,7 @@ export function toLaTeX(astOrExpr: ASTNode | string): string {
         return node.name;
 
       case 'UNARY_OP':
-        return `-${render(node.expr)}`;
+        return node.op === '!' ? `\\neg ${render(node.expr)}` : `-${render(node.expr)}`;
 
       case 'MATRIX': {
         const body = node.rows.map((row) => row.map(render).join(' & ')).join(' \\\\ ');

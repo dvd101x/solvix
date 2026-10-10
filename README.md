@@ -239,6 +239,36 @@ const runningRows = evaluate('cumsum(A, 2)', { A: [[1, 2], [3, 4]] }); // [[1, 3
 
 Syntax errors include the source line, column and a caret pointing at the invalid token.
 
+The parser also supports Julia-style programs with functions, local assignments and flow control:
+
+```typescript
+const factorial = evaluate(`
+function factorial(n)
+  result = 1
+  for i = 1:n
+    result = result * i
+  end
+  return result
+end
+factorial(5)
+`); // 120
+
+const threshold = evaluate(`
+value = 0
+while value < 10
+  value = value + 1
+end
+if value == 10
+  value
+else
+  0
+end
+`); // 10
+```
+
+Conditions accept real numbers and booleans, with `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||` and `!`.
+`while` loops are capped at 1,000,000 iterations and throw a `RangeError` when the limit is exceeded.
+
 // Compile a reusable high-performance function
 const kineticEnergy = compile('0.5 * m * v^2');
 console.log(kineticEnergy({ m: 10, v: 20 })); // 2000

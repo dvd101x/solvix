@@ -154,4 +154,41 @@ describe('ix / parser / mathematical expression parser & AST', () => {
     expect(evaluate('nanmean(x)', { x: [1, NaN, 3] })).toBe(2);
     expect(() => evaluate('sum(A, 0)', { A })).toThrow(/1-based/);
   });
+
+  it('supports Julia-style function declarations, assignments and return', () => {
+    const program = `
+function factorial(n)
+  result = 1
+  for i = 1:n
+    result = result * i
+  end
+  return result
+end
+factorial(5)
+`;
+    expect(evaluate(program)).toBe(120);
+    expect(evaluate('function twice(x); return x * 2; end; twice(4)')).toBe(8);
+    expect(() => evaluate('return 1')).toThrow(/only be used inside/);
+  });
+
+  it('supports conditionals, loops and logical comparisons', () => {
+    const program = `
+sum = 0
+for i = 1:6
+  if i % 2 == 0 && i < 6
+    sum = sum + i
+  elseif i == 6
+    sum = sum + 10
+  else
+    sum = sum + 1
+  end
+end
+while sum < 25
+  sum = sum + 1
+end
+sum
+`;
+    expect(evaluate(program)).toBe(25);
+    expect(evaluate('if !(2 > 3) || false; 7; else; 9; end')).toBe(7);
+  });
 });

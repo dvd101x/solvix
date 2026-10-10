@@ -34,7 +34,7 @@ import { nanmean, nansum, nanstd } from '../stats/series-ops.js';
 export interface Token {
   type:
     | 'NUMBER' | 'IDENTIFIER' | 'OPERATOR' | 'LPAREN' | 'RPAREN' | 'COMMA'
-    | 'LBRACKET' | 'RBRACKET' | 'SEMICOLON' | 'COLON';
+    | 'LBRACKET' | 'RBRACKET' | 'SEMICOLON' | 'COLON' | 'NEWLINE';
   value: string;
   /** Whitespace precedes this token; it separates elements inside `[...]`. */
   spaceBefore?: boolean;
@@ -55,22 +55,37 @@ export type ASTNode =
   | { type: 'MATRIX'; rows: ASTNode[][]; commaSeparated: boolean }
   | { type: 'RANGE'; start: ASTNode; step?: ASTNode; stop: ASTNode }
   | { type: 'INDEX'; target: ASTNode; indices: ASTNode[] }
-  | { type: 'COLON_ALL' };
+  | { type: 'COLON_ALL' }
+  | { type: 'PROGRAM'; statements: ASTNode[] }
+  | { type: 'ASSIGNMENT'; name: string; value: ASTNode }
+  | { type: 'FUNCTION_DECLARATION'; name: string; params: string[]; body: ASTNode[] }
+  | { type: 'IF'; branches: { condition: ASTNode; body: ASTNode[] }[]; elseBody?: ASTNode[] }
+  | { type: 'WHILE'; condition: ASTNode; body: ASTNode[] }
+  | { type: 'FOR'; variable: string; iterable: ASTNode; body: ASTNode[] }
+  | { type: 'RETURN'; value?: ASTNode };
 
 const OPERATOR_PRECEDENCE: Record<string, { prec: number; assoc: 'L' | 'R' }> = {
-  '+': { prec: 2, assoc: 'L' },
-  '-': { prec: 2, assoc: 'L' },
-  '.+': { prec: 2, assoc: 'L' },
-  '.-': { prec: 2, assoc: 'L' },
-  '*': { prec: 3, assoc: 'L' },
-  '/': { prec: 3, assoc: 'L' },
-  '\\': { prec: 3, assoc: 'L' },
-  '.*': { prec: 3, assoc: 'L' },
-  './': { prec: 3, assoc: 'L' },
-  '%': { prec: 3, assoc: 'L' },
-  '^': { prec: 4, assoc: 'R' },
-  '.^': { prec: 4, assoc: 'R' },
-  'unary-': { prec: 5, assoc: 'R' },
+  '||': { prec: 1, assoc: 'L' },
+  '&&': { prec: 2, assoc: 'L' },
+  '==': { prec: 3, assoc: 'L' },
+  '!=': { prec: 3, assoc: 'L' },
+  '<': { prec: 3, assoc: 'L' },
+  '<=': { prec: 3, assoc: 'L' },
+  '>': { prec: 3, assoc: 'L' },
+  '>=': { prec: 3, assoc: 'L' },
+  '+': { prec: 4, assoc: 'L' },
+  '-': { prec: 4, assoc: 'L' },
+  '.+': { prec: 4, assoc: 'L' },
+  '.-': { prec: 4, assoc: 'L' },
+  '*': { prec: 5, assoc: 'L' },
+  '/': { prec: 5, assoc: 'L' },
+  '\\': { prec: 5, assoc: 'L' },
+  '.*': { prec: 5, assoc: 'L' },
+  './': { prec: 5, assoc: 'L' },
+  '%': { prec: 5, assoc: 'L' },
+  '^': { prec: 6, assoc: 'R' },
+  '.^': { prec: 6, assoc: 'R' },
+  'unary-': { prec: 7, assoc: 'R' },
 };
 
 function syntaxErrorAt(expr: string, index: number, message: string): SyntaxError {
@@ -105,6 +120,12 @@ export function tokenize(expr: string): Token[] {
   while (i < len) {
     tokenStart = i;
     const ch = expr[i];
+
+    if (ch === '\n') {
+      push({ type: 'NEWLINE', value: '\n' });
+      i++;
+      continue;
+    }
 
     if (/\s/.test(ch)) {
       space = true;
@@ -178,7 +199,14 @@ export function tokenize(expr: string): Token[] {
       continue;
     }
 
-    if (['+', '-', '*', '/', '^', '%', '\\', "'"].includes(ch)) {
+    const twoCharacterOperator = expr.slice(i, i + 2);
+    if (['==', '!=', '<=', '>=', '&&', '||'].includes(twoCharacterOperator)) {
+      push({ type: 'OPERATOR', value: twoCharacterOperator });
+      i += 2;
+      continue;
+    }
+
+    if (['+', '-', '*', '/', '^', '%', '\\', "'", '<', '>', '!', '='].includes(ch)) {
       push({ type: 'OPERATOR', value: ch });
       i++;
       continue;
@@ -191,6 +219,7 @@ export function tokenize(expr: string): Token[] {
   // Inside [...] whitespace separates elements instead, and `x[` with no space is indexing.
   const withImplicitMul: Token[] = [];
   const stack: string[] = [];
+  const statementKeywords = new Set(['function', 'if', 'elseif', 'else', 'while', 'for', 'return', 'end']);
   for (let idx = 0; idx < tokens.length; idx++) {
     const cur = tokens[idx];
     const next = tokens[idx + 1];
@@ -210,7 +239,8 @@ export function tokenize(expr: string): Token[] {
       const isFunctionCall = cur.type === 'IDENTIFIER' && next.type === 'LPAREN' && !next.spaceBefore;
       const isIndexing = next.type === 'LBRACKET' && !next.spaceBefore;
       const separatesElements = stack[stack.length - 1] === '[' && next.spaceBefore;
-      if (isCurEnd && isNextStart && !isFunctionCall && !isIndexing && !separatesElements) {
+      const isStatementKeyword = cur.type === 'IDENTIFIER' && statementKeywords.has(cur.value);
+      if (isCurEnd && isNextStart && !isFunctionCall && !isIndexing && !separatesElements && !isStatementKeyword) {
         withImplicitMul.push({ type: 'OPERATOR', value: '*' });
       }
     }
@@ -227,7 +257,6 @@ export function parseExpression(expr: string): ASTNode {
   let pos = 0;
   const syntaxError = (message: string, token: Token | undefined = tokens[pos]) =>
     syntaxErrorAt(expr, token?.start ?? expr.length, message);
-  // True while parsing the elements of a [...] literal, where spaces separate elements.
   let inMatrix = false;
 
   function nested<T>(matrix: boolean, fn: () => T): T {
@@ -240,14 +269,25 @@ export function parseExpression(expr: string): ASTNode {
     }
   }
 
+  function skipSeparators(): void {
+    while (tokens[pos]?.type === 'NEWLINE' || tokens[pos]?.type === 'SEMICOLON') pos++;
+  }
+
+  function requireBlockSeparator(): void {
+    if (tokens[pos]?.type !== 'NEWLINE' && tokens[pos]?.type !== 'SEMICOLON') {
+      throw syntaxError('Expected a newline or ";" before block body');
+    }
+    skipSeparators();
+  }
+
   function parseRange(): ASTNode {
-    const first = parseBinary(2);
+    const first = parseBinary(1);
     if (tokens[pos]?.type !== 'COLON') return first;
     pos++;
-    const second = parseBinary(2);
+    const second = parseBinary(1);
     if (tokens[pos]?.type !== 'COLON') return { type: 'RANGE', start: first, stop: second };
     pos++;
-    const third = parseBinary(2);
+    const third = parseBinary(1);
     return { type: 'RANGE', start: first, step: second, stop: third };
   }
 
@@ -260,7 +300,7 @@ export function parseExpression(expr: string): ASTNode {
         const t = tokens[pos];
         if (!t) throw syntaxError('Mismatched bracket: expected "]"');
         if (t.type === 'RBRACKET') break;
-        if (t.type === 'SEMICOLON') {
+        if (t.type === 'SEMICOLON' || t.type === 'NEWLINE') {
           rows.push([]);
           pos++;
         } else if (t.type === 'COMMA') {
@@ -281,6 +321,7 @@ export function parseExpression(expr: string): ASTNode {
     const indices: ASTNode[] = [];
     nested(false, () => {
       while (true) {
+        while (tokens[pos]?.type === 'NEWLINE') pos++;
         const t = tokens[pos];
         const after = tokens[pos + 1];
         if (t?.type === 'COLON' && (after?.type === 'COMMA' || after?.type === 'RBRACKET')) {
@@ -289,7 +330,10 @@ export function parseExpression(expr: string): ASTNode {
         } else {
           indices.push(parseRange());
         }
-        if (tokens[pos]?.type === 'COMMA') pos++;
+        if (tokens[pos]?.type === 'COMMA') {
+          pos++;
+          while (tokens[pos]?.type === 'NEWLINE') pos++;
+        }
         else break;
       }
     });
@@ -303,10 +347,10 @@ export function parseExpression(expr: string): ASTNode {
     if (!token) throw syntaxError('Unexpected end of expression');
 
     // Unary minus binds tighter than * but looser than ^, so -2^2 === -(2^2).
-    if (token.type === 'OPERATOR' && (token.value === '-' || token.value === '+')) {
+    if (token.type === 'OPERATOR' && (token.value === '-' || token.value === '+' || token.value === '!')) {
       pos++;
       const sub = parseBinary(OPERATOR_PRECEDENCE['^'].prec);
-      return token.value === '-' ? { type: 'UNARY_OP', op: '-', expr: sub } : sub;
+      return token.value === '+' ? sub : { type: 'UNARY_OP', op: token.value, expr: sub };
     }
 
     let node = parseAtom();
@@ -338,18 +382,21 @@ export function parseExpression(expr: string): ASTNode {
       if (tokens[pos]?.type === 'LPAREN' && !(inMatrix && tokens[pos].spaceBefore)) {
         pos++; // consume '('
         const args: ASTNode[] = [];
+        while (tokens[pos]?.type === 'NEWLINE') pos++;
         if (tokens[pos]?.type !== 'RPAREN') {
           nested(false, () => {
             while (true) {
               args.push(parseRange());
               if (tokens[pos]?.type === 'COMMA') {
                 pos++;
+                while (tokens[pos]?.type === 'NEWLINE') pos++;
               } else {
                 break;
               }
             }
           });
         }
+        while (tokens[pos]?.type === 'NEWLINE') pos++;
         if (tokens[pos]?.type !== 'RPAREN') {
           throw syntaxError(`Expected closing parenthesis after arguments in function ${name}`);
         }
@@ -363,7 +410,9 @@ export function parseExpression(expr: string): ASTNode {
 
     if (token.type === 'LPAREN') {
       pos++;
+      while (tokens[pos]?.type === 'NEWLINE') pos++;
       const node = nested(false, parseRange);
+      while (tokens[pos]?.type === 'NEWLINE') pos++;
       if (tokens[pos]?.type !== 'RPAREN') {
         throw syntaxError('Mismatched parenthesis: expected ")"');
       }
@@ -393,11 +442,124 @@ export function parseExpression(expr: string): ASTNode {
     return left;
   }
 
-  const ast = parseRange();
-  if (pos < tokens.length) {
-    throw syntaxError(`Extra unexpected tokens after valid expression starting at "${tokens[pos].value}"`);
+  function parseFunction(): ASTNode {
+    pos++;
+    const name = tokens[pos];
+    if (name?.type !== 'IDENTIFIER') throw syntaxError('Expected function name');
+    pos++;
+    if (tokens[pos]?.type !== 'LPAREN') throw syntaxError(`Expected "(" after function name ${name.value}`);
+    pos++;
+    const params: string[] = [];
+    if (tokens[pos]?.type !== 'RPAREN') {
+      while (true) {
+        const param = tokens[pos];
+        if (param?.type !== 'IDENTIFIER') throw syntaxError('Expected parameter name');
+        params.push(param.value);
+        pos++;
+        if (tokens[pos]?.type !== 'COMMA') break;
+        pos++;
+      }
+    }
+    if (tokens[pos]?.type !== 'RPAREN') throw syntaxError(`Expected ")" after parameters for ${name.value}`);
+    pos++;
+    requireBlockSeparator();
+    const body = parseStatements(new Set(['end']));
+    if (tokens[pos]?.value !== 'end') throw syntaxError(`Expected "end" for function ${name.value}`);
+    pos++;
+    return { type: 'FUNCTION_DECLARATION', name: name.value, params, body };
   }
-  return ast;
+
+  function parseIf(): ASTNode {
+    pos++;
+    const condition = parseRange();
+    requireBlockSeparator();
+    const branches = [{ condition, body: parseStatements(new Set(['elseif', 'else', 'end'])) }];
+    while (tokens[pos]?.value === 'elseif') {
+      pos++;
+      const elseifCondition = parseRange();
+      requireBlockSeparator();
+      branches.push({ condition: elseifCondition, body: parseStatements(new Set(['elseif', 'else', 'end'])) });
+    }
+    let elseBody: ASTNode[] | undefined;
+    if (tokens[pos]?.value === 'else') {
+      pos++;
+      requireBlockSeparator();
+      elseBody = parseStatements(new Set(['end']));
+    }
+    if (tokens[pos]?.value !== 'end') throw syntaxError('Expected "end" for if block');
+    pos++;
+    return { type: 'IF', branches, elseBody };
+  }
+
+  function parseWhile(): ASTNode {
+    pos++;
+    const condition = parseRange();
+    requireBlockSeparator();
+    const body = parseStatements(new Set(['end']));
+    if (tokens[pos]?.value !== 'end') throw syntaxError('Expected "end" for while block');
+    pos++;
+    return { type: 'WHILE', condition, body };
+  }
+
+  function parseFor(): ASTNode {
+    pos++;
+    const variable = tokens[pos];
+    if (variable?.type !== 'IDENTIFIER') throw syntaxError('Expected loop variable after "for"');
+    pos++;
+    if (tokens[pos]?.type !== 'OPERATOR' || tokens[pos].value !== '=') {
+      throw syntaxError(`Expected "=" after loop variable ${variable.value}`);
+    }
+    pos++;
+    const iterable = parseRange();
+    requireBlockSeparator();
+    const body = parseStatements(new Set(['end']));
+    if (tokens[pos]?.value !== 'end') throw syntaxError('Expected "end" for for block');
+    pos++;
+    return { type: 'FOR', variable: variable.value, iterable, body };
+  }
+
+  function parseStatement(): ASTNode {
+    const token = tokens[pos];
+    if (token?.type === 'IDENTIFIER') {
+      if (token.value === 'function') return parseFunction();
+      if (token.value === 'if') return parseIf();
+      if (token.value === 'while') return parseWhile();
+      if (token.value === 'for') return parseFor();
+      if (token.value === 'return') {
+        pos++;
+        if (tokens[pos]?.type === 'NEWLINE' || tokens[pos]?.type === 'SEMICOLON' || !tokens[pos]) {
+          return { type: 'RETURN' };
+        }
+        return { type: 'RETURN', value: parseRange() };
+      }
+      if (tokens[pos + 1]?.type === 'OPERATOR' && tokens[pos + 1].value === '=') {
+        pos += 2;
+        return { type: 'ASSIGNMENT', name: token.value, value: parseRange() };
+      }
+    }
+    return parseRange();
+  }
+
+  function parseStatements(stopWords: Set<string>): ASTNode[] {
+    const statements: ASTNode[] = [];
+    skipSeparators();
+    while (pos < tokens.length) {
+      const token = tokens[pos];
+      if (token.type === 'IDENTIFIER' && stopWords.has(token.value)) break;
+      statements.push(parseStatement());
+      if (pos >= tokens.length) break;
+      if (tokens[pos]?.type !== 'NEWLINE' && tokens[pos]?.type !== 'SEMICOLON') {
+        throw syntaxError(`Expected a statement separator before "${tokens[pos].value}"`);
+      }
+      skipSeparators();
+    }
+    return statements;
+  }
+
+  const statements = parseStatements(new Set());
+  if (pos < tokens.length) throw syntaxError(`Extra unexpected tokens after valid expression starting at "${tokens[pos].value}"`);
+  if (statements.length === 0) throw syntaxError('Expected expression');
+  return statements.length === 1 ? statements[0] : { type: 'PROGRAM', statements };
 }
 
 const REAL_MATH: Record<string, Function> = {
@@ -570,6 +732,12 @@ function callScalarFunction(name: string, fn: Function, args: any[], broadcast?:
 function evalBinary(op: string, l: any, r: any): any {
   if (typeof l === 'number' && typeof r === 'number') {
     switch (op) {
+      case '==': return l === r;
+      case '!=': return l !== r;
+      case '<': return l < r;
+      case '<=': return l <= r;
+      case '>': return l > r;
+      case '>=': return l >= r;
       case '+': case '.+': return l + r;
       case '-': case '.-': return l - r;
       case '*': case '.*': return l * r;
@@ -580,6 +748,10 @@ function evalBinary(op: string, l: any, r: any): any {
     }
   }
   switch (op) {
+    case '==': return l === r;
+    case '!=': return l !== r;
+    case '<': case '<=': case '>': case '>=':
+      throw new TypeError(`The ${op} operator is only defined for real numbers`);
     case '+': case '.+': return addElementwise(l, r);
     case '-': case '.-': return sub(l, r);
     case '*': return mtimes(l, r);
@@ -595,6 +767,24 @@ function evalBinary(op: string, l: any, r: any): any {
   }
 }
 
+const MAX_LOOP_ITERATIONS = 1_000_000;
+
+class ReturnSignal {
+  constructor(public readonly value: unknown) {}
+}
+
+function conditionValue(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  throw new TypeError('Flow-control conditions must evaluate to a number or boolean');
+}
+
+function evaluateStatements(statements: ASTNode[], scope: Record<string, any>): unknown {
+  let result: unknown;
+  for (const statement of statements) result = evaluateAST(statement, scope);
+  return result;
+}
+
 /**
  * Evaluates an AST against a scope of variables and functions.
  * Operators follow Julia: `*` is the matrix product, `.*` `./` `.^` are element-wise,
@@ -602,6 +792,68 @@ function evalBinary(op: string, l: any, r: any): any {
  */
 export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any {
   switch (ast.type) {
+    case 'PROGRAM':
+      return evaluateStatements(ast.statements, scope);
+
+    case 'ASSIGNMENT': {
+      const value = evaluateAST(ast.value, scope);
+      scope[ast.name] = value;
+      return value;
+    }
+
+    case 'FUNCTION_DECLARATION': {
+      const fn = (...args: unknown[]) => {
+        if (args.length !== ast.params.length) {
+          throw new RangeError(`${ast.name} expects ${ast.params.length} arguments, got ${args.length}`);
+        }
+        const localScope = Object.create(scope) as Record<string, any>;
+        for (let i = 0; i < ast.params.length; i++) localScope[ast.params[i]] = args[i];
+        try {
+          return evaluateStatements(ast.body, localScope);
+        } catch (error) {
+          if (error instanceof ReturnSignal) return error.value;
+          throw error;
+        }
+      };
+      scope[ast.name] = fn;
+      return fn;
+    }
+
+    case 'IF':
+      for (const branch of ast.branches) {
+        if (conditionValue(evaluateAST(branch.condition, scope))) {
+          return evaluateStatements(branch.body, scope);
+        }
+      }
+      return ast.elseBody ? evaluateStatements(ast.elseBody, scope) : undefined;
+
+    case 'WHILE': {
+      let result: unknown;
+      for (let iteration = 0; conditionValue(evaluateAST(ast.condition, scope)); iteration++) {
+        if (iteration >= MAX_LOOP_ITERATIONS) {
+          throw new RangeError(`while loop exceeded ${MAX_LOOP_ITERATIONS} iterations`);
+        }
+        result = evaluateStatements(ast.body, scope);
+      }
+      return result;
+    }
+
+    case 'FOR': {
+      const iterable = evaluateAST(ast.iterable, scope);
+      if (!isArrayLike(iterable)) {
+        throw new TypeError('for loop iterable must be an array or range');
+      }
+      let result: unknown;
+      for (const value of toNDArray(iterable)) {
+        scope[ast.variable] = value;
+        result = evaluateStatements(ast.body, scope);
+      }
+      return result;
+    }
+
+    case 'RETURN':
+      throw new ReturnSignal(ast.value === undefined ? undefined : evaluateAST(ast.value, scope));
+
     case 'NUMBER':
       return ast.value;
 
@@ -612,6 +864,8 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
       if (ast.name === 'pi' || ast.name === 'PI') return Math.PI;
       if (ast.name === 'e' || ast.name === 'E') return Math.E;
       if (ast.name === 'im') return new Complex(0, 1);
+      if (ast.name === 'true') return true;
+      if (ast.name === 'false') return false;
       // Built-in scalar functions are first-class values, e.g. map(sqrt, x)
       if (REAL_MATH[ast.name]) return (v: any) => callScalarFunction(ast.name, REAL_MATH[ast.name], [v]);
       throw new ReferenceError(`Undefined variable or symbol in scope: "${ast.name}"`);
@@ -619,6 +873,7 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
 
     case 'UNARY_OP': {
       const val = evaluateAST(ast.expr, scope);
+      if (ast.op === '!') return !conditionValue(val);
       return typeof val === 'number' ? -val : neg(val);
     }
 
@@ -658,8 +913,12 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
     case 'POSTFIX_OP':
       return ctranspose(evaluateAST(ast.expr, scope));
 
-    case 'BINARY_OP':
-      return evalBinary(ast.op, evaluateAST(ast.left, scope), evaluateAST(ast.right, scope));
+    case 'BINARY_OP': {
+      const left = evaluateAST(ast.left, scope);
+      if (ast.op === '&&') return conditionValue(left) && conditionValue(evaluateAST(ast.right, scope));
+      if (ast.op === '||') return conditionValue(left) || conditionValue(evaluateAST(ast.right, scope));
+      return evalBinary(ast.op, left, evaluateAST(ast.right, scope));
+    }
 
     case 'FUNCTION_CALL': {
       const args = ast.args.map((arg) => evaluateAST(arg, scope));
@@ -690,7 +949,14 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
  */
 export function evaluate(expr: string, scope: Record<string, any> = {}): any {
   const ast = parseExpression(expr);
-  return evaluateAST(ast, scope);
+  try {
+    return evaluateAST(ast, scope);
+  } catch (error) {
+    if (error instanceof ReturnSignal) {
+      throw new SyntaxError('return can only be used inside a function declaration');
+    }
+    throw error;
+  }
 }
 
 /**
