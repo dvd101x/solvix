@@ -124,6 +124,12 @@ describe('ix / parser / mathematical expression parser & AST', () => {
     expect(() => evaluate('unknownFunction(2)')).toThrowError(/Unknown function/);
   });
 
+  it('reports syntax errors with source locations', () => {
+    expect(() => evaluate('2 +\n$')).toThrow(/Unexpected character "\$" at line 2, column 1\n\$\n\^/);
+    expect(() => evaluate('sin(1, 2')).toThrow(/Expected closing parenthesis after arguments in function sin at line 1, column 9/);
+    expect(() => evaluate('1 +')).toThrow(/Unexpected end of expression at line 1, column 4/);
+  });
+
   it('supports common Math built-ins in evaluated and compiled expressions', () => {
     expect(evaluate('log10(100) + log2(8)')).toBe(5);
     expect(evaluate('sign(-4) + trunc(2.9)')).toBe(1);
@@ -133,5 +139,19 @@ describe('ix / parser / mathematical expression parser & AST', () => {
     expect(evaluate('pow(2, 3)')).toBe(8);
     expect(evaluate('clamp(5, 0, 3)')).toBe(3);
     expect(compile('sinh(x) + cosh(x)')({ x: 0 })).toBe(1);
+  });
+
+  it('exposes array reductions and cumulative functions with 1-based axes', () => {
+    const A = [[1, 2, 3], [4, 5, 6]];
+    const nested = (value: unknown) => value instanceof NDArray ? value.toNestedArray() : value;
+
+    expect(evaluate('sum(A)', { A })).toBe(21);
+    expect(nested(evaluate('sum(A, 1)', { A }))).toEqual([5, 7, 9]);
+    expect(nested(evaluate('mean(A, 2)', { A }))).toEqual([2, 5]);
+    expect(nested(evaluate('sum(A, [1, 2])', { A }))).toEqual([21]);
+    expect(nested(evaluate('cumsum(A, 2)', { A }))).toEqual([[1, 3, 6], [4, 9, 15]]);
+    expect(nested(evaluate('argmax(A, 2)', { A }))).toEqual([2, 2]);
+    expect(evaluate('nanmean(x)', { x: [1, NaN, 3] })).toBe(2);
+    expect(() => evaluate('sum(A, 0)', { A })).toThrow(/1-based/);
   });
 });

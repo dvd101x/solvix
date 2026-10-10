@@ -232,6 +232,13 @@ const val = evaluate('3 + 4 * 2 / (1 - 5)^2'); // 3.5
 const res = evaluate('sin(pi / 2) + sqrt(x^2 + y^2)', { x: 3, y: 4 }); // 6.0
 const magnitude = evaluate('hypot(3, 4) + log10(100)'); // 7
 
+// Array functions use Julia's 1-based dimensions; an array literal selects multiple axes.
+const columnSums = evaluate('sum(A, 1)', { A: [[1, 2], [3, 4]] }); // [4, 6]
+const total = evaluate('sum(A, [1, 2])', { A: [[1, 2], [3, 4]] }); // [10]
+const runningRows = evaluate('cumsum(A, 2)', { A: [[1, 2], [3, 4]] }); // [[1, 3], [3, 7]]
+
+Syntax errors include the source line, column and a caret pointing at the invalid token.
+
 // Compile a reusable high-performance function
 const kineticEnergy = compile('0.5 * m * v^2');
 console.log(kineticEnergy({ m: 10, v: 20 })); // 2000

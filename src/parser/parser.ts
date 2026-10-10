@@ -24,6 +24,12 @@ import {
 import { det, inv, solve } from '../linalg/factorizations.js';
 import { broadcastMap, mapElements, mapIndexed } from '../ops/broadcast-map.js';
 import { colonRange, buildArray, indexOneBased, type AxisIndex } from '../indexing/one-based.js';
+import {
+  all, any, argmax, argmin, countNonzero, cummax, cummin, cumprod, cumsum,
+  max, mean, median, min, percentile, prod, quantile, std, sum, variance,
+  type Axis,
+} from '../stats/reductions.js';
+import { nanmean, nansum, nanstd } from '../stats/series-ops.js';
 
 export interface Token {
   type:
@@ -34,6 +40,9 @@ export interface Token {
   spaceBefore?: boolean;
   /** Julia-style broadcast call `f.(x)`; only set on identifiers. */
   broadcast?: boolean;
+  /** Zero-based character range in the original expression. */
+  start?: number;
+  end?: number;
 }
 
 export type ASTNode =
@@ -64,6 +73,16 @@ const OPERATOR_PRECEDENCE: Record<string, { prec: number; assoc: 'L' | 'R' }> = 
   'unary-': { prec: 5, assoc: 'R' },
 };
 
+function syntaxErrorAt(expr: string, index: number, message: string): SyntaxError {
+  const safeIndex = Math.max(0, Math.min(index, expr.length));
+  const lineStart = expr.lastIndexOf('\n', safeIndex - 1) + 1;
+  const lineEnd = expr.indexOf('\n', safeIndex);
+  const line = expr.slice(lineStart, lineEnd === -1 ? expr.length : lineEnd);
+  const lineNumber = expr.slice(0, lineStart).split('\n').length;
+  const column = safeIndex - lineStart + 1;
+  return new SyntaxError(`${message} at line ${lineNumber}, column ${column}\n${line}\n${' '.repeat(column - 1)}^`);
+}
+
 /**
  * Tokeniza una cadena de texto en un flujo de tokens léxicos.
  */
@@ -73,14 +92,18 @@ export function tokenize(expr: string): Token[] {
   const len = expr.length;
 
   let space = false;
+  let tokenStart = 0;
   const brackets: string[] = [];
   const push = (t: Token) => {
     if (space) t.spaceBefore = true;
     space = false;
+    t.start = tokenStart;
+    t.end = i;
     tokens.push(t);
   };
 
   while (i < len) {
+    tokenStart = i;
     const ch = expr[i];
 
     if (/\s/.test(ch)) {
@@ -161,7 +184,7 @@ export function tokenize(expr: string): Token[] {
       continue;
     }
 
-    throw new SyntaxError(`Unexpected character in expression: "${ch}" at index ${i}`);
+    throw syntaxErrorAt(expr, i, `Unexpected character "${ch}"`);
   }
 
   // Implicit multiplication (2x -> 2*x, 3(x+1) -> 3*(x+1), (a)(b) -> (a)*(b)).
@@ -202,6 +225,8 @@ export function tokenize(expr: string): Token[] {
 export function parseExpression(expr: string): ASTNode {
   const tokens = tokenize(expr);
   let pos = 0;
+  const syntaxError = (message: string, token: Token | undefined = tokens[pos]) =>
+    syntaxErrorAt(expr, token?.start ?? expr.length, message);
   // True while parsing the elements of a [...] literal, where spaces separate elements.
   let inMatrix = false;
 
@@ -233,7 +258,7 @@ export function parseExpression(expr: string): ASTNode {
     nested(true, () => {
       while (true) {
         const t = tokens[pos];
-        if (!t) throw new SyntaxError('Mismatched bracket: expected "]"');
+        if (!t) throw syntaxError('Mismatched bracket: expected "]"');
         if (t.type === 'RBRACKET') break;
         if (t.type === 'SEMICOLON') {
           rows.push([]);
@@ -268,14 +293,14 @@ export function parseExpression(expr: string): ASTNode {
         else break;
       }
     });
-    if (tokens[pos]?.type !== 'RBRACKET') throw new SyntaxError('Mismatched bracket: expected "]"');
+    if (tokens[pos]?.type !== 'RBRACKET') throw syntaxError('Mismatched bracket: expected "]"');
     pos++;
     return { type: 'INDEX', target, indices };
   }
 
   function parsePrimary(): ASTNode {
     const token = tokens[pos];
-    if (!token) throw new SyntaxError('Unexpected end of expression');
+    if (!token) throw syntaxError('Unexpected end of expression');
 
     // Unary minus binds tighter than * but looser than ^, so -2^2 === -(2^2).
     if (token.type === 'OPERATOR' && (token.value === '-' || token.value === '+')) {
@@ -300,7 +325,7 @@ export function parseExpression(expr: string): ASTNode {
 
   function parseAtom(): ASTNode {
     const token = tokens[pos];
-    if (!token) throw new SyntaxError('Unexpected end of expression');
+    if (!token) throw syntaxError('Unexpected end of expression');
 
     if (token.type === 'NUMBER') {
       pos++;
@@ -326,7 +351,7 @@ export function parseExpression(expr: string): ASTNode {
           });
         }
         if (tokens[pos]?.type !== 'RPAREN') {
-          throw new SyntaxError(`Expected closing parenthesis after arguments in function ${name}`);
+          throw syntaxError(`Expected closing parenthesis after arguments in function ${name}`);
         }
         pos++; // consume ')'
         return token.broadcast ? { type: 'FUNCTION_CALL', name, args, broadcast: true } : { type: 'FUNCTION_CALL', name, args };
@@ -340,13 +365,13 @@ export function parseExpression(expr: string): ASTNode {
       pos++;
       const node = nested(false, parseRange);
       if (tokens[pos]?.type !== 'RPAREN') {
-        throw new SyntaxError('Mismatched parenthesis: expected ")"');
+        throw syntaxError('Mismatched parenthesis: expected ")"');
       }
       pos++;
       return node;
     }
 
-    throw new SyntaxError(`Unexpected token "${token.value}" of type ${token.type}`);
+    throw syntaxError(`Unexpected token "${token.value}" of type ${token.type}`, token);
   }
 
   function parseBinary(minPrec: number): ASTNode {
@@ -370,7 +395,7 @@ export function parseExpression(expr: string): ASTNode {
 
   const ast = parseRange();
   if (pos < tokens.length) {
-    throw new SyntaxError(`Extra unexpected tokens after valid expression starting at "${tokens[pos].value}"`);
+    throw syntaxError(`Extra unexpected tokens after valid expression starting at "${tokens[pos].value}"`);
   }
   return ast;
 }
@@ -420,6 +445,46 @@ const COMPLEX_MATH: Record<string, (re: number, im: number) => [number, number]>
   cos: (a, b) => [Math.cos(a) * Math.cosh(b), -Math.sin(a) * Math.sinh(b)],
 };
 
+function parserAxis(axis: unknown): Axis | undefined {
+  if (axis === undefined) return undefined;
+  const axes = typeof axis === 'number'
+    ? [axis]
+    : isArrayLike(axis)
+      ? Array.from(toNDArray(axis).data)
+      : null;
+  if (!axes || axes.length === 0 || axes.some((value) => !Number.isInteger(value) || value < 1)) {
+    throw new RangeError('Parser axes must be positive 1-based integers');
+  }
+  const zeroBasedAxes = axes.map((value) => value - 1);
+  return typeof axis === 'number' ? zeroBasedAxes[0] : zeroBasedAxes;
+}
+
+function reduction(
+  fn: (arr: NDArray, opts: { axis?: Axis; ddof?: number }) => unknown,
+  arr: unknown,
+  axis?: unknown,
+  ddof?: unknown,
+): unknown {
+  if (!isArrayLike(arr)) {
+    throw new TypeError('Reduction functions require an array argument');
+  }
+  if (ddof !== undefined && (!Number.isInteger(ddof) || (ddof as number) < 0)) {
+    throw new RangeError('ddof must be a non-negative integer');
+  }
+  return fn(toNDArray(arr), { axis: parserAxis(axis), ddof: ddof as number | undefined });
+}
+
+function scan(
+  fn: (arr: NDArray, opts: { axis?: Axis }) => NDArray,
+  arr: unknown,
+  axis?: unknown,
+): NDArray {
+  if (!isArrayLike(arr)) {
+    throw new TypeError('Cumulative functions require an array argument');
+  }
+  return fn(toNDArray(arr), { axis: parserAxis(axis) });
+}
+
 /** Functions that already understand scalars, complex numbers and whole arrays. */
 const ARRAY_FUNCTIONS: Record<string, Function> = {
   abs, conj, real, imag, angle,
@@ -439,6 +504,38 @@ const ARRAY_FUNCTIONS: Record<string, Function> = {
   eye: (n: number, m?: number) => eye(n, m),
   zeros: (...dims: number[]) => NDArray.zeros(dims),
   ones: (...dims: number[]) => NDArray.ones(dims),
+  sum: (arr: unknown, axis?: unknown) => reduction(sum, arr, axis),
+  prod: (arr: unknown, axis?: unknown) => reduction(prod, arr, axis),
+  mean: (arr: unknown, axis?: unknown) => reduction(mean, arr, axis),
+  variance: (arr: unknown, axis?: unknown, ddof?: unknown) => reduction(variance, arr, axis, ddof),
+  std: (arr: unknown, axis?: unknown, ddof?: unknown) => reduction(std, arr, axis, ddof),
+  median: (arr: unknown, axis?: unknown) => reduction(median, arr, axis),
+  min: (...args: unknown[]) => isArrayLike(args[0])
+    ? reduction(min, args[0], args[1])
+    : Math.min(...args as number[]),
+  max: (...args: unknown[]) => isArrayLike(args[0])
+    ? reduction(max, args[0], args[1])
+    : Math.max(...args as number[]),
+  argmin: (arr: unknown, axis?: unknown) => reduction(argmin, arr, axis),
+  argmax: (arr: unknown, axis?: unknown) => reduction(argmax, arr, axis),
+  all: (arr: unknown, axis?: unknown) => reduction(all, arr, axis),
+  any: (arr: unknown, axis?: unknown) => reduction(any, arr, axis),
+  countNonzero: (arr: unknown, axis?: unknown) => reduction(countNonzero, arr, axis),
+  quantile: (arr: unknown, q: number, axis?: unknown) => {
+    if (typeof q !== 'number') throw new TypeError('quantile requires a numeric quantile');
+    return reduction((value, opts) => quantile(value, q, opts), arr, axis);
+  },
+  percentile: (arr: unknown, p: number, axis?: unknown) => {
+    if (typeof p !== 'number') throw new TypeError('percentile requires a numeric percentile');
+    return reduction((value, opts) => percentile(value, p, opts), arr, axis);
+  },
+  nansum: (arr: unknown, axis?: unknown) => reduction(nansum, arr, axis),
+  nanmean: (arr: unknown, axis?: unknown) => reduction(nanmean, arr, axis),
+  nanstd: (arr: unknown, axis?: unknown, ddof?: unknown) => reduction(nanstd, arr, axis, ddof),
+  cumsum: (arr: unknown, axis?: unknown) => scan(cumsum, arr, axis),
+  cumprod: (arr: unknown, axis?: unknown) => scan(cumprod, arr, axis),
+  cummin: (arr: unknown, axis?: unknown) => scan(cummin, arr, axis),
+  cummax: (arr: unknown, axis?: unknown) => scan(cummax, arr, axis),
 };
 
 function callScalarFunction(name: string, fn: Function, args: any[], broadcast?: boolean): any {
