@@ -670,8 +670,11 @@ export function evaluateAST(ast: ASTNode, scope: Record<string, any> = {}): any 
           ? mapElements(args[0], (v) => userFn(v))
           : broadcastMap((...v: any[]) => userFn(...v), ...args);
       }
-      if (ARRAY_FUNCTIONS[ast.name]) return ARRAY_FUNCTIONS[ast.name](...args);
       const scalarFn = REAL_MATH[ast.name];
+      if (ast.broadcast && typeof scalarFn === 'function') {
+        return callScalarFunction(ast.name, scalarFn, args, true);
+      }
+      if (ARRAY_FUNCTIONS[ast.name]) return ARRAY_FUNCTIONS[ast.name](...args);
       if (typeof scalarFn !== 'function') {
         throw new ReferenceError(`Unknown function: "${ast.name}"`);
       }
