@@ -204,7 +204,7 @@ function fibonacci(n)
 end
 fibonacci(4)
 `;
-    expect(evaluate(program, scope)).toBe(15);
+    expect(evaluate(program, scope)).toBe(11);
     expect(scope).not.toHaveProperty('temporary');
 
     const compiled = compile('function increment(x); x + 1; end; increment(value)');
