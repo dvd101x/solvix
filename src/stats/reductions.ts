@@ -11,11 +11,12 @@
 import { NDArray } from '../core/ndarray.js';
 import { Quantity } from '../units/units.js';
 import { broadcastMap } from '../ops/broadcast-map.js';
-import { reduceTensorAxis } from './reduction-utils.js';
+import { reduceTensorAxis, type Axis } from './reduction-utils.js';
 import { scanTensorAxis } from './scan-utils.js';
+export type { Axis } from './reduction-utils.js';
 
 export interface ReductionOptions {
-  axis?: number;
+  axis?: Axis;
   keepdims?: boolean;
   ddof?: number; // Delta degrees of freedom (0 for population, 1 for unbiased sample).
 }
@@ -36,17 +37,17 @@ export interface StatsSummary {
 export type AxisStatsSummary = { [K in keyof StatsSummary]: NDArray };
 
 export interface SumProductOptions {
-  axis?: number;
+  axis?: Axis;
   keepdims?: boolean;
 }
 
 export interface DescribeOptions {
-  axis?: number;
+  axis?: Axis;
   keepdims?: boolean;
 }
 
 export interface ScanOptions {
-  axis?: number;
+  axis?: Axis;
 }
 
 function sumValues(values: number[]): number {
@@ -111,12 +112,12 @@ function maxValue(values: number[]): number {
 /**
  * Función genérica de reducción multidimensional por eje.
  */
-function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number): NDArray | number;
-function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: true): NDArray | number | Quantity;
-function reduceAxis(arr: NDArray, axis: number | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: false): NDArray | number;
+function reduceAxis(arr: NDArray, axis: Axis | undefined, keepdims: boolean, reducer: (values: number[]) => number): NDArray | number;
+function reduceAxis(arr: NDArray, axis: Axis | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: true): NDArray | number | Quantity;
+function reduceAxis(arr: NDArray, axis: Axis | undefined, keepdims: boolean, reducer: (values: number[]) => number, keepUnit: false): NDArray | number;
 function reduceAxis(
   arr: NDArray,
-  axis: number | undefined,
+  axis: Axis | undefined,
   keepdims: boolean,
   reducer: (values: number[]) => number,
   keepUnit = false,
@@ -317,7 +318,7 @@ export function kurtosis(arr: NDArray, opts: ReductionOptions = {}): NDArray | n
  * Resumen descriptivo completo de un tensor.
  */
 export function describe(arr: NDArray): StatsSummary;
-export function describe(arr: NDArray, opts: DescribeOptions & { axis: number }): AxisStatsSummary;
+export function describe(arr: NDArray, opts: DescribeOptions & { axis: Axis }): AxisStatsSummary;
 export function describe(arr: NDArray, opts: DescribeOptions): StatsSummary | AxisStatsSummary;
 export function describe(arr: NDArray, opts: DescribeOptions = {}): StatsSummary | AxisStatsSummary {
   if (opts.axis !== undefined) {

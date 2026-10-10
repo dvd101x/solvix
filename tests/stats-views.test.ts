@@ -149,6 +149,22 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(Array.from(m0.data)).toEqual([2.5, 3.5, 4.5]);
   });
 
+  it('reduces multiple axes together and validates axis lists', () => {
+    const values = NDArray.fromArray([
+      [[1, 2], [3, 4]],
+      [[5, 6], [7, 8]],
+    ]);
+
+    const summed = sum(values, { axis: [0, 2] }) as NDArray;
+    expect(Array.from(summed.shape)).toEqual([2]);
+    expect(Array.from(summed.data)).toEqual([14, 22]);
+    expect(Array.from((mean(values, { axis: [-3, -1], keepdims: true }) as NDArray).shape)).toEqual([1, 2, 1]);
+    expect(Array.from((countNonzero(values, { axis: [0, 1] }) as NDArray).data)).toEqual([4, 4]);
+    expect(Array.from((sum(values, { axis: [0, 1, 2] }) as NDArray).data)).toEqual([36]);
+    expect(() => sum(values, { axis: [0, 0] })).toThrow(/more than once/);
+    expect(() => sum(values, { axis: [] })).toThrow(/at least one/);
+  });
+
   it('performs cumulative scans globally and along positive or negative axes', () => {
     const values = NDArray.fromArray([[1, 2, 3], [4, 5, 6]]);
 
@@ -164,6 +180,16 @@ describe('ix / stats / reductions with axes and descriptive statistics', () => {
     expect(Array.from(cummin(extrema, { axis: 1 }).data)).toEqual([3, 1, 1, 2, 2, 0]);
     expect(Array.from(cummax(extrema, { axis: 0 }).data)).toEqual([3, 1, 4, 3, 5, 4]);
     expect(Array.from(cummax(extrema, { axis: -1 }).data)).toEqual([3, 3, 4, 2, 5, 5]);
+  });
+
+  it('scans sequentially along multiple axes', () => {
+    const values = NDArray.fromArray([[1, 2, 3], [4, 5, 6]]);
+
+    expect(Array.from(cumsum(values, { axis: [0, 1] }).data)).toEqual([1, 3, 6, 5, 12, 21]);
+    expect(Array.from(cumprod(values, { axis: [0, 1] }).data)).toEqual([1, 2, 6, 4, 40, 720]);
+    expect(Array.from(cummin(values, { axis: [0, 1] }).data)).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(Array.from(cummax(values, { axis: [-2, -1] }).data)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(() => cumsum(values, { axis: [0, 0] })).toThrow(/more than once/);
   });
 
   it('resets cumulative state for each slice along middle axes and handles empty inputs', () => {

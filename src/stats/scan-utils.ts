@@ -1,8 +1,9 @@
 import { NDArray } from '../core/ndarray.js';
+import { normalizeAxes, type Axis } from './reduction-utils.js';
 
 export function scanTensorAxis(
   arr: NDArray,
-  axis: number | undefined,
+  axis: Axis | undefined,
   combine: (accumulated: number, value: number) => number,
   preserveUnit: boolean
 ): NDArray {
@@ -24,18 +25,28 @@ export function scanTensorAxis(
     return new NDArray(out, { shape: [arr.size], unit: preserveUnit ? arr.unit : undefined });
   }
 
-  const normAxis = axis < 0 ? arr.ndim + axis : axis;
-  if (normAxis < 0 || normAxis >= arr.ndim) {
-    throw new RangeError(`Axis ${axis} is out of bounds for ndim ${arr.ndim}`);
+  const axes = normalizeAxes(axis, arr.ndim);
+  let result = arr;
+  for (const axisIndex of axes) {
+    result = scanSingleAxis(result, axisIndex, combine, preserveUnit);
   }
+  return result;
+}
+
+function scanSingleAxis(
+  arr: NDArray,
+  axis: number,
+  combine: (accumulated: number, value: number) => number,
+  preserveUnit: boolean,
+): NDArray {
   const out = new Float64Array(arr.size);
   const coords = new Int32Array(arr.ndim);
   let axisStride = 1;
-  for (let dim = normAxis + 1; dim < arr.ndim; dim++) axisStride *= arr.shape[dim];
+  for (let dim = axis + 1; dim < arr.ndim; dim++) axisStride *= arr.shape[dim];
 
   for (let index = 0; index < arr.size; index++) {
     const value = arr.get(...Array.from(coords));
-    out[index] = coords[normAxis] === 0
+    out[index] = coords[axis] === 0
       ? value
       : combine(out[index - axisStride], value);
 
